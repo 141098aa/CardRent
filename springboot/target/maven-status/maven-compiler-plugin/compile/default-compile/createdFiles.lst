@@ -1,0 +1,12 @@
+com\example\common\Result.class
+com\example\entity\Account.class
+com\example\common\CorsConfig.class
+com\example\service\AdminService.class
+com\example\exception\GlobalExceptionHandler.class
+com\example\SpringbootApplication.class
+com\example\exception\CustomException.class
+com\example\controller\AdminController.class
+com\example\controller\FileController.class
+com\example\entity\Admin.class
+com\example\controller\WebController.class
+com\example\mapper\AdminMapper.class

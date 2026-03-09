@@ -1,0 +1,24 @@
+{
+  "css.completion.completePropertyWithSemicolon": false,
+  "less.completion.completePropertyWithSemicolon": false,
+  "scss.completion.completePropertyWithSemicolon": false,
+  "javascript.format.semicolons": "remove",
+  "typescript.format.semicolons": "remove",
+  "typescript.format.insertSpaceAfterSemicolonInForStatements": false,
+  "editor.formatOnSave": true,
+  "editor.wordWrapColumn": 120,
+  "prettier.printWidth": 120,
+  "prettier.proseWrap": "never",
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "prettier.semi": false,
+  "prettier.singleQuote": true,
+  "prettier.trailingComma": "none",
+  "prettier.bracketSameLine": true, // 让 > 跟最后一属性在同一行
+  "prettier.singleAttributePerLine": false, // 禁止每个属性单独占一行
+  "[vue]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[javascript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  }
+}
