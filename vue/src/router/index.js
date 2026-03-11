@@ -23,7 +23,18 @@ const router = createRouter({
       children: [
         { path: 'home', component: () => import('@/views/front/Home.vue') },
         { path: 'person', component: () => import('@/views/front/Person.vue') },
-        { path: 'password', component: () => import('@/views/front/Password.vue') }
+        { path: 'password', component: () => import('@/views/front/Password.vue') },
+        { path: 'rental', component: () => import('@/views/front/Rental.vue') },
+        { path: 'forum', component: () => import('@/views/front/Forum.vue') },
+        { path: 'news', component: () => import('@/views/front/News.vue') },
+        { path: 'guide', component: () => import('@/views/front/Guide.vue') },
+        { path: 'about', component: () => import('@/views/front/About.vue') },
+        { path: 'favorites', component: () => import('@/views/front/Favorites.vue') },
+        { path: 'recharge', component: () => import('@/views/front/Recharge.vue') },
+        { path: 'set-payment-password', component: () => import('@/views/front/SetPaymentPassword.vue') },
+        { path: 'car/:id', component: () => import('@/views/front/CarDetail.vue') },
+        { path: 'orders', component: () => import('@/views/front/Orders.vue'), meta: { requiresAuth: true } },
+        { path: 'news/:id', component: () => import('@/views/front/NewsDetail.vue'), meta: { title: '资讯详情' } }
       ]
     },
     { path: '/login', component: () => import('@/views/Login.vue') },
