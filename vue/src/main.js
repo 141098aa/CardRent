@@ -5,6 +5,8 @@ import ElementPlus from 'element-plus'
 import zhCn from 'element-plus/dist/locale/zh-cn.mjs'
 import * as ElementPlusIconsVue from '@element-plus/icons-vue'
 import '@/assets/css/global.css'
+// 管理员主题样式
+import './assets/css/admin-theme.css'
 import 'element-plus/dist/index.css'
 
 const app = createApp(App)

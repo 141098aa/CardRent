@@ -156,9 +156,9 @@
     </div>
 
     <!-- 加载更多 -->
-    <div class="load-more">
+    <!-- <div class="load-more">
       <el-button class="load-more-btn" @click="loadMoreCars"> 加载更多车型 </el-button>
-    </div>
+    </div> -->
   </div>
 </template>
 
@@ -697,7 +697,7 @@ const loadMoreCars = () => {
 }
 
 /* 加载更多按钮 */
-.load-more {
+/* .load-more {
   text-align: center;
   margin-top: 32px;
 }
@@ -717,7 +717,7 @@ const loadMoreCars = () => {
   color: #fff;
   transform: translateY(-2px);
   box-shadow: 0 8px 16px rgba(200, 161, 101, 0.2);
-}
+} */
 
 /* 响应式 */
 @media (max-width: 1100px) {

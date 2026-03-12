@@ -1,0 +1,160 @@
+/* 管理员主题样式 - 只在 admin-scope 容器内生效 */
+
+/* 按钮样式 */
+.admin-scope .el-button--primary {
+  background-color: #409eff;
+  border-color: #409eff;
+}
+
+.admin-scope .el-button--primary:hover {
+  background-color: #66b1ff;
+  border-color: #66b1ff;
+}
+
+.admin-scope .el-button--primary:active {
+  background-color: #3a8ee6;
+  border-color: #3a8ee6;
+}
+
+/* 朴素按钮样式 */
+.admin-scope .el-button--primary.is-plain {
+  background-color: #ecf5ff;
+  border-color: #b3d8ff;
+  color: #409eff;
+}
+
+.admin-scope .el-button--primary.is-plain:hover {
+  background-color: #409eff;
+  border-color: #409eff;
+  color: white;
+}
+
+.admin-scope .el-button--danger.is-plain {
+  background-color: #fef0f0;
+  border-color: #fbc4c4;
+  color: #f56c6c;
+}
+
+.admin-scope .el-button--danger.is-plain:hover {
+  background-color: #f56c6c;
+  border-color: #f56c6c;
+  color: white;
+}
+
+/* 查询和重置按钮 */
+.admin-scope .el-button:not(.is-plain) {
+  border-radius: 6px;
+  padding: 8px 16px;
+}
+
+/* 表格样式 */
+.admin-scope .el-table {
+  --el-table-border-color: transparent;
+  --el-table-header-bg-color: #f8fafc;
+}
+
+.admin-scope .el-table th.el-table__cell {
+  background-color: #f8fafc;
+  color: #1e2a3a;
+  font-weight: 600;
+  font-size: 14px;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.admin-scope .el-table td.el-table__cell {
+  border-bottom: 1px solid #f0f2f5;
+}
+
+.admin-scope .el-table--striped .el-table__body tr.el-table__row--striped td {
+  background-color: #fafbfc;
+}
+
+/* 分页样式 */
+.admin-scope .el-pagination {
+  --el-pagination-button-bg-color: white;
+  --el-pagination-hover-color: #409eff;
+}
+
+.admin-scope .el-pagination.is-background .el-pager li:not(.is-disabled).is-active {
+  background-color: #409eff;
+}
+
+/* 弹窗样式 */
+.admin-scope .el-dialog {
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.admin-scope .el-dialog__header {
+  background-color: #f8fafc;
+  margin-right: 0;
+  padding: 16px 20px;
+  border-bottom: 1px solid #edf2f7;
+}
+
+.admin-scope .el-dialog__title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1e2a3a;
+}
+
+.admin-scope .el-dialog__body {
+  padding: 24px 20px;
+}
+
+.admin-scope .el-dialog__footer {
+  padding: 16px 20px;
+  border-top: 1px solid #edf2f7;
+  background-color: #f8fafc;
+}
+
+/* 卡片样式 */
+.admin-scope .card {
+  background: white;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.03);
+  border: 1px solid #edf2f7;
+}
+
+/* 头像上传样式 */
+.admin-scope .avatar-wrapper {
+  width: 100px;
+  height: 100px;
+  border: 1px dashed #d9d9d9;
+  border-radius: 6px;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s ease;
+  background-color: #f8fafc;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.admin-scope .avatar-wrapper:hover {
+  border-color: #409eff;
+  background-color: #ecf5ff;
+}
+
+.admin-scope .avatar-preview {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.admin-scope .avatar-uploader-icon {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #8c8c8c;
+  font-size: 12px;
+}
+
+.admin-scope .avatar-uploader-icon .el-icon {
+  font-size: 28px;
+  margin-bottom: 4px;
+  color: #999;
+}
