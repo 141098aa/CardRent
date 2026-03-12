@@ -38,7 +38,7 @@
 
         <el-table-column prop="account" label="账户余额" min-width="120">
           <template #default="scope">
-            <span style="color: #409eff; font-weight: 600">¥{{ scope.row.account || '0.00' }}</span>
+            <span style="color: #409eff; font-weight: 600">¥{{ formatBalance(scope.row.account) }}</span>
           </template>
         </el-table-column>
 
@@ -61,7 +61,9 @@
         <el-table-column label="操作" align="center" width="220" fixed="right">
           <template #default="scope">
             <el-button type="primary" size="small" :icon="Edit" @click="handleEdit(scope.row)" plain> 编辑 </el-button>
-            <el-button type="danger" size="small" :icon="Delete" @click="del(scope.row.id)" plain> 删除 </el-button>
+            <el-button type="danger" size="small" :icon="Delete" @click="handleDelete(scope.row.id)" plain>
+              删除
+            </el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -84,7 +86,7 @@
     <el-dialog
       :title="data.form.id ? '编辑用户' : '新增用户'"
       width="450px"
-      v-model="data.FormVisible"
+      v-model="data.formVisible"
       :close-on-click-modal="false"
       destroy-on-close>
       <el-form ref="formRef" :model="data.form" :rules="data.rules" label-width="80px" style="padding-right: 20px">
@@ -107,11 +109,7 @@
         </el-form-item>
 
         <el-form-item prop="username" label="账号">
-          <el-input
-            :disabled="data.form.id != undefined"
-            v-model="data.form.username"
-            placeholder="请输入账号"
-            clearable />
+          <el-input :disabled="!!data.form.id" v-model="data.form.username" placeholder="请输入账号" clearable />
         </el-form-item>
 
         <el-form-item prop="name" label="姓名">
@@ -134,7 +132,7 @@
 
       <template #footer>
         <span class="dialog-footer">
-          <el-button @click="data.FormVisible = false">取 消</el-button>
+          <el-button @click="data.formVisible = false">取 消</el-button>
           <el-button type="primary" @click="save" :loading="data.saving">确 定</el-button>
         </span>
       </template>
@@ -144,9 +142,9 @@
 
 <script setup>
 import { reactive, ref } from 'vue'
-import { Search, Edit, Delete, Plus } from '@element-plus/icons-vue'
-import request from '../../utils/request'
+import { Search, Edit, Delete } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import * as userApi from '@/utils/api/manager/user'
 
 const baseUrl = import.meta.env.VITE_BASE_URL
 const formRef = ref()
@@ -157,7 +155,7 @@ const data = reactive({
   total: 0,
   pageNum: 1,
   pageSize: 10,
-  FormVisible: false,
+  formVisible: false, // 注意：原代码是 FormVisible，改为 formVisible 保持命名一致
   saving: false,
   form: {},
   rules: {
@@ -178,24 +176,29 @@ const data = reactive({
   }
 })
 
+// 格式化余额
+const formatBalance = (balance) => {
+  if (balance === undefined || balance === null) return '0.00'
+  return Number(balance).toFixed(2)
+}
+
 // 分页查询数据
-const load = () => {
-  request
-    .get('/user/selectPage', {
-      params: {
-        pageNum: data.pageNum,
-        pageSize: data.pageSize,
-        name: data.name
-      }
+const load = async () => {
+  try {
+    const res = await userApi.selectPage({
+      pageNum: data.pageNum,
+      pageSize: data.pageSize,
+      name: data.name
     })
-    .then((res) => {
-      if (res.code === '200') {
-        data.tableData = res.data.list || []
-        data.total = res.data.total || 0
-      } else {
-        ElMessage.error(res.msg)
-      }
-    })
+    if (res.code === '200') {
+      data.tableData = res.data?.list || []
+      data.total = res.data?.total || 0
+    } else {
+      ElMessage.error(res.msg || '查询失败')
+    }
+  } catch (error) {
+    ElMessage.error('查询失败')
+  }
 }
 
 // 重置
@@ -206,14 +209,15 @@ const reset = () => {
 }
 
 // 删除用户
-const del = (id) => {
+const handleDelete = (id) => {
   ElMessageBox.confirm('删除后数据无法恢复，您确定删除吗？', '删除确认', {
     type: 'warning',
     confirmButtonText: '确定删除',
     cancelButtonText: '再想想'
   })
-    .then(() => {
-      request.delete('/user/delete/' + id).then((res) => {
+    .then(async () => {
+      try {
+        const res = await userApi.deleteUser(id)
         if (res.code === '200') {
           // 如果当前页只有一条数据且不是第一页，则返回上一页
           if (data.tableData.length === 1 && data.pageNum > 1) {
@@ -222,55 +226,57 @@ const del = (id) => {
           ElMessage.success('删除成功')
           load()
         } else {
-          ElMessage.error(res.msg)
+          ElMessage.error(res.msg || '删除失败')
         }
-      })
+      } catch (error) {
+        ElMessage.error('删除失败')
+      }
     })
     .catch(() => {})
 }
 
 // 新增用户
 const handleAdd = () => {
-  data.form = {} // 清空表单，不需要设置默认角色
-  data.FormVisible = true
+  data.form = {}
+  data.formVisible = true
 }
 
 // 新增保存
-const add = () => {
+const handleAddSubmit = async () => {
   data.saving = true
-  request
-    .post('/user/add', data.form)
-    .then((res) => {
-      if (res.code === '200') {
-        ElMessage.success('新增成功')
-        data.FormVisible = false
-        load()
-      } else {
-        ElMessage.error(res.msg || '操作失败')
-      }
-    })
-    .finally(() => {
-      data.saving = false
-    })
+  try {
+    const res = await userApi.add(data.form)
+    if (res.code === '200') {
+      ElMessage.success('新增成功')
+      data.formVisible = false
+      load()
+    } else {
+      ElMessage.error(res.msg || '操作失败')
+    }
+  } catch (error) {
+    ElMessage.error('新增失败')
+  } finally {
+    data.saving = false
+  }
 }
 
 // 编辑保存
-const update = () => {
+const handleUpdateSubmit = async () => {
   data.saving = true
-  request
-    .put('/user/update', data.form)
-    .then((res) => {
-      if (res.code === '200') {
-        ElMessage.success('修改成功')
-        data.FormVisible = false
-        load()
-      } else {
-        ElMessage.error(res.msg || '操作失败')
-      }
-    })
-    .finally(() => {
-      data.saving = false
-    })
+  try {
+    const res = await userApi.update(data.form)
+    if (res.code === '200') {
+      ElMessage.success('修改成功')
+      data.formVisible = false
+      load()
+    } else {
+      ElMessage.error(res.msg || '操作失败')
+    }
+  } catch (error) {
+    ElMessage.error('修改失败')
+  } finally {
+    data.saving = false
+  }
 }
 
 // 新增/编辑保存
@@ -281,7 +287,7 @@ const save = () => {
       if (!data.form.id) {
         data.form.role = '普通用户'
       }
-      data.form.id ? update() : add()
+      data.form.id ? handleUpdateSubmit() : handleAddSubmit()
     }
   })
 }
@@ -289,7 +295,7 @@ const save = () => {
 // 编辑数据
 const handleEdit = (row) => {
   data.form = JSON.parse(JSON.stringify(row))
-  data.FormVisible = true
+  data.formVisible = true
 }
 
 // 头像上传成功回调
@@ -322,4 +328,6 @@ const beforeAvatarUpload = (file) => {
 load()
 </script>
 
-<style scoped></style>
+<style scoped>
+/* 只保留特定于这个页面的样式，通用的样式已经移到全局 */
+</style>

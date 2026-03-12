@@ -19,9 +19,7 @@
       <!-- 无边框表格 -->
       <el-table :data="data.tableData" stripe style="width: 100%" :border="false">
         <el-table-column label="用户名" prop="username" min-width="120"></el-table-column>
-
         <el-table-column label="名称" prop="name" min-width="120"></el-table-column>
-
         <el-table-column label="头像" width="100" align="center">
           <template #default="scope">
             <el-avatar :src="scope.row.avatar" :size="40" :fit="'cover'">
@@ -29,7 +27,6 @@
             </el-avatar>
           </template>
         </el-table-column>
-
         <el-table-column label="角色" prop="role" min-width="120">
           <template #default="scope">
             <el-tag :type="scope.row.role === '超级管理员' ? 'danger' : 'primary'" size="small" effect="light">
@@ -37,7 +34,6 @@
             </el-tag>
           </template>
         </el-table-column>
-
         <el-table-column label="操作" align="center" width="220" fixed="right">
           <template #default="scope">
             <el-button type="primary" size="small" :icon="Edit" @click="handleEdit(scope.row)" plain> 编辑 </el-button>
@@ -69,7 +65,6 @@
       :close-on-click-modal="false"
       destroy-on-close>
       <el-form :model="data.form" label-width="80px" style="padding-right: 20px">
-        <!-- 头像上传 -->
         <el-form-item label="头像" prop="avatar">
           <el-upload
             class="avatar-uploader"
@@ -86,7 +81,6 @@
             </div>
           </el-upload>
         </el-form-item>
-
         <el-form-item label="账号" prop="username">
           <el-input
             :disabled="data.form.id ? true : false"
@@ -94,16 +88,13 @@
             placeholder="请输入账号"
             clearable />
         </el-form-item>
-
         <el-form-item label="名称" prop="name">
           <el-input v-model="data.form.name" placeholder="请输入名称" clearable />
         </el-form-item>
-
         <el-form-item label="密码" prop="password" v-if="!data.form.id">
           <el-input v-model="data.form.password" type="password" placeholder="请输入密码" show-password clearable />
         </el-form-item>
       </el-form>
-
       <template #footer>
         <span class="dialog-footer">
           <el-button @click="data.formVisible = false">取 消</el-button>
@@ -115,12 +106,11 @@
 </template>
 
 <script setup>
-import request from '@/utils/request'
-import { reactive } from 'vue'
-import { ElMessageBox, ElMessage } from 'element-plus'
-import { Search, Edit, Delete, Plus } from '@element-plus/icons-vue'
+import { reactive, ref } from 'vue'
+import { Search, Edit, Delete } from '@element-plus/icons-vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import * as adminApi from '@/utils/api/manager/admin'
 
-// 文件上传的接口地址
 const uploadUrl = import.meta.env.VITE_BASE_URL + '/files/upload'
 
 const data = reactive({
@@ -135,25 +125,24 @@ const data = reactive({
 })
 
 // 分页查询
-const load = () => {
-  request
-    .get('/admin/selectPage', {
-      params: {
-        pageNum: data.pageNum,
-        pageSize: data.pageSize,
-        name: data.name
-      }
+const load = async () => {
+  try {
+    const res = await adminApi.selectPage({
+      pageNum: data.pageNum,
+      pageSize: data.pageSize,
+      name: data.name
     })
-    .then((res) => {
-      data.tableData = res.data?.list || []
-      data.total = res.data?.total || 0
-    })
+    data.tableData = res.data?.list || []
+    data.total = res.data?.total || 0
+  } catch (error) {
+    ElMessage.error('查询失败')
+  }
 }
 
 // 新增
 const handleAdd = () => {
   data.form = {
-    role: '普通管理员' // 默认角色
+    role: '普通管理员'
   }
   data.formVisible = true
 }
@@ -165,46 +154,41 @@ const handleEdit = (row) => {
 }
 
 // 新增保存
-const add = () => {
+const handleAddSubmit = async () => {
   data.saving = true
-  request
-    .post('/admin/add', data.form)
-    .then((res) => {
-      if (res.code === '200') {
-        load()
-        ElMessage.success('新增成功')
-        data.formVisible = false
-      } else {
-        ElMessage.error(res.msg || '操作失败')
-      }
-    })
-    .finally(() => {
-      data.saving = false
-    })
+  try {
+    const res = await adminApi.add(data.form)
+    if (res.code === '200') {
+      await load()
+      ElMessage.success('新增成功')
+      data.formVisible = false
+    } else {
+      ElMessage.error(res.msg || '操作失败')
+    }
+  } finally {
+    data.saving = false
+  }
 }
 
 // 编辑保存
-const update = () => {
+const handleUpdateSubmit = async () => {
   data.saving = true
-  request
-    .put('/admin/update', data.form)
-    .then((res) => {
-      if (res.code === '200') {
-        load()
-        ElMessage.success('修改成功')
-        data.formVisible = false
-      } else {
-        ElMessage.error(res.msg || '操作失败')
-      }
-    })
-    .finally(() => {
-      data.saving = false
-    })
+  try {
+    const res = await adminApi.update(data.form)
+    if (res.code === '200') {
+      await load()
+      ElMessage.success('修改成功')
+      data.formVisible = false
+    } else {
+      ElMessage.error(res.msg || '操作失败')
+    }
+  } finally {
+    data.saving = false
+  }
 }
 
 // 弹窗保存
 const save = () => {
-  // 表单验证
   if (!data.form.username) {
     ElMessage.warning('请输入账号')
     return
@@ -218,32 +202,31 @@ const save = () => {
     return
   }
 
-  // data.form有id就是更新，没有就是新增
-  data.form.id ? update() : add()
+  data.form.id ? handleUpdateSubmit() : handleAddSubmit()
 }
 
 // 删除
-const handleDelete = (id) => {
-  ElMessageBox.confirm('删除后数据无法恢复，您确定删除吗?', '删除确认', {
-    type: 'warning',
-    confirmButtonText: '确定删除',
-    cancelButtonText: '再想想'
-  })
-    .then(() => {
-      request.delete('/admin/delete/' + id).then((res) => {
-        if (res.code === '200') {
-          // 如果当前页只有一条数据且不是第一页，则返回上一页
-          if (data.tableData.length === 1 && data.pageNum > 1) {
-            data.pageNum--
-          }
-          load()
-          ElMessage.success('删除成功')
-        } else {
-          ElMessage.error(res.msg || '删除失败')
-        }
-      })
+const handleDelete = async (id) => {
+  try {
+    await ElMessageBox.confirm('删除后数据无法恢复，您确定删除吗?', '删除确认', {
+      type: 'warning',
+      confirmButtonText: '确定删除',
+      cancelButtonText: '再想想'
     })
-    .catch(() => {})
+
+    const res = await adminApi.deleteAdmin(id)
+    if (res.code === '200') {
+      if (data.tableData.length === 1 && data.pageNum > 1) {
+        data.pageNum--
+      }
+      await load()
+      ElMessage.success('删除成功')
+    } else {
+      ElMessage.error(res.msg || '删除失败')
+    }
+  } catch (error) {
+    // 用户取消删除或请求失败，不处理
+  }
 }
 
 // 重置
@@ -282,7 +265,6 @@ const beforeAvatarUpload = (file) => {
 // 初始化加载
 load()
 </script>
-
 <style scoped>
-/* 所有通用样式都已移到全局src\assets\css\admin-theme.css，这里只保留特定于此页面的样式 */
+/* 只保留特定于这个页面的样式，通用的样式已经移到全局 */
 </style>
