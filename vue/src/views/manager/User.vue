@@ -144,7 +144,7 @@
 import { reactive, ref } from 'vue'
 import { Search, Edit, Delete } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import * as userApi from '@/utils/api/manager/user'
+import { userApi } from '@/utils/api'
 
 const baseUrl = import.meta.env.VITE_BASE_URL
 const formRef = ref()

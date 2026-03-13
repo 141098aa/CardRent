@@ -109,7 +109,7 @@
 import { reactive, ref } from 'vue'
 import { Search, Edit, Delete } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import * as adminApi from '@/utils/api/manager/admin'
+import { adminApi } from '@/utils/api'
 
 const uploadUrl = import.meta.env.VITE_BASE_URL + '/files/upload'
 

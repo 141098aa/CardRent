@@ -25,14 +25,24 @@
     </delete>
     <!--新增-->
     <insert id="insert" parameterType="com.example.entity.User">
-        insert into `user`(username,password,name,avatar,role,account)
-        values (#{username},#{password},#{name},#{avatar},#{role},#{account})
+        insert into `user`(
+            username, password, name, avatar, phone, email, role, account,
+            payment_password, real_name_verified, driver_license_verified,
+            create_time, update_time
+        ) values (
+                     #{username}, #{password}, #{name}, #{avatar}, #{phone}, #{email},
+                     #{role}, #{account}, #{paymentPassword}, #{realNameVerified},
+                     #{driverLicenseVerified}, #{createTime}, #{updateTime}
+                 )
     </insert>
 
     <!--更新-->
     <update id="updateById">
-        update `user` set username=#{username},password=#{password},
-                          name=#{name},avatar=#{avatar},role=#{role},account=#{account}
-        where id=#{id}
+        update `user`
+        set
+            username = #{username},password = #{password}, name = #{name},avatar = #{avatar},phone = #{phone},
+            email = #{email},role = #{role},account = #{account},payment_password = #{paymentPassword},
+            real_name_verified = #{realNameVerified},driver_license_verified = #{driverLicenseVerified},
+            update_time = NOW() where id = #{id}
     </update>
 </mapper>

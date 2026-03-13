@@ -180,10 +180,35 @@
 </template>
 
 <script setup>
-import { reactive } from 'vue'
+import { reactive, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import router from '@/router'
 import { ElMessage } from 'element-plus'
 import { HomeFilled, User, Lock, SwitchButton } from '@element-plus/icons-vue'
+
+const route = useRoute()
+
+// 滚动整个窗口
+watch(
+  () => route.fullPath,
+  () => {
+    // 直接滚动窗口到顶部
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth'
+    })
+
+    // 同时也尝试滚动 html 和 body
+    // document.documentElement.scrollTo({
+    //   top: 0,
+    //   behavior: 'smooth'
+    // })
+    // document.body.scrollTo({
+    //   top: 0,
+    //   behavior: 'smooth'
+    // })
+  }
+)
 
 const data = reactive({
   user: JSON.parse(localStorage.getItem('system-user') || '{}')

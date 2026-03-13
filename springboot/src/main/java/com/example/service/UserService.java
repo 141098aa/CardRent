@@ -13,6 +13,7 @@ import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service//被controller引用
@@ -65,11 +66,18 @@ public class UserService {
             user.setName(user.getUsername());
         }
         user.setRole("普通用户");//默认用户角色
-        user.setAccount(BigDecimal.ZERO);//默认用户的账户余额
-       userMapper.insert(user);
+        user.setAccount(user.getAccount() != null ? user.getAccount() : BigDecimal.ZERO); //默认用户的账户余额
+        user.setPaymentPassword(null); // 支付密码默认为空
+        user.setRealNameVerified(0); // 实名认证状态默认未认证
+        user.setDriverLicenseVerified(0); // 驾驶证认证状态默认未认证
+        user.setCreateTime(LocalDateTime.now()); // 设置创建时间
+        user.setUpdateTime(LocalDateTime.now()); // 设置更新时间
+        userMapper.insert(user);
     }
 
     public void update(User user) {
+        // 设置更新时间
+        user.setUpdateTime(LocalDateTime.now());
        //user对象里面必须包含ID，否则无法更新数据
        userMapper.updateById(user);
     }
