@@ -1,0 +1,208 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.mapper.UserAuthMapper">
+
+    <!-- 实名认证分页查询 -->
+    <select id="selectRealNamePage" resultType="com.example.entity.UserRealNameAuth">
+        select r.*, u.username, u.name, u.phone
+        from user_real_name_auth r
+        left join user u on r.user_id = u.id
+        <where>
+            <if test="status != null">
+                and r.status = #{status}
+            </if>
+        </where>
+        order by r.create_time desc
+    </select>
+
+    <!-- 根据ID查询实名认证 -->
+    <select id="selectRealNameById" resultType="com.example.entity.UserRealNameAuth">
+        select r.*, u.username, u.name, u.phone
+        from user_real_name_auth r
+                 left join user u on r.user_id = u.id
+        where r.id = #{id}
+    </select>
+
+    <!-- 根据用户ID查询实名认证 -->
+    <select id="selectRealNameByUserId" resultType="com.example.entity.UserRealNameAuth">
+        select * from user_real_name_auth where user_id = #{userId}
+    </select>
+
+    <!-- 更新实名认证状态 -->
+    <update id="updateRealNameStatus">
+        update user_real_name_auth
+        set status = #{status},
+            audit_remark = #{auditRemark},
+            audit_time = #{auditTime}
+        where id = #{id}
+    </update>
+
+    <!-- 驾驶证认证分页查询 -->
+    <select id="selectDriverLicensePage" resultType="com.example.entity.UserDriverLicenseAuth">
+        select d.*, u.username, u.name, u.phone
+        from user_driver_license_auth d
+        left join user u on d.user_id = u.id
+        <where>
+            <if test="status != null">
+                and d.status = #{status}
+            </if>
+        </where>
+        order by d.create_time desc
+    </select>
+
+    <!-- 根据ID查询驾驶证认证 -->
+    <select id="selectDriverLicenseById" resultType="com.example.entity.UserDriverLicenseAuth">
+        select d.*, u.username, u.name, u.phone
+        from user_driver_license_auth d
+                 left join user u on d.user_id = u.id
+        where d.id = #{id}
+    </select>
+
+    <!-- 根据用户ID查询驾驶证认证 -->
+    <select id="selectDriverLicenseByUserId" resultType="com.example.entity.UserDriverLicenseAuth">
+        select * from user_driver_license_auth where user_id = #{userId}
+    </select>
+
+    <!-- 更新驾驶证认证状态 -->
+    <update id="updateDriverLicenseStatus">
+        update user_driver_license_auth
+        set status = #{status},
+            audit_remark = #{auditRemark},
+            audit_time = #{auditTime}
+        where id = #{id}
+    </update>
+
+    <!-- 统一查询所有认证（用于列表页） -->
+    <select id="selectAllAuthPage" resultType="com.example.entity.dto.AuthAuditDTO">
+        select * from (
+        select
+        'real_name' as authType,
+        r.id,
+        r.user_id as userId,
+        u.username,
+        u.name as userRealName,
+        u.phone,
+        r.real_name as authName,
+        r.id_number as authNumber,
+        r.id_front_image as frontImage,
+        r.id_back_image as backImage,
+        r.status,
+        r.audit_remark as auditRemark,
+        r.audit_time as auditTime,
+        r.create_time as createTime,
+        null as vehicleType,
+        null as validStart,
+        null as validEnd
+        from user_real_name_auth r
+        left join user u on r.user_id = u.id
+
+        <if test="authType == null or authType == 'all' or authType == 'driver_license'">
+            union all
+
+            select
+            'driver_license' as authType,
+            d.id,
+            d.user_id as userId,
+            u.username,
+            u.name as userRealName,
+            u.phone,
+            d.driver_name as authName,
+            d.license_number as authNumber,
+            d.license_front_image as frontImage,
+            d.license_back_image as backImage,
+            d.status,
+            d.audit_remark as auditRemark,
+            d.audit_time as auditTime,
+            d.create_time as createTime,
+            d.vehicle_type as vehicleType,
+            d.valid_start as validStart,
+            d.valid_end as validEnd
+            from user_driver_license_auth d
+            left join user u on d.user_id = u.id
+        </if>
+        ) t
+        <where>
+            <if test="status != null">
+                and t.status = #{status}
+            </if>
+            <if test="authType != null and authType != 'all'">
+                and t.authType = #{authType}
+            </if>
+        </where>
+        order by t.createTime desc
+    </select>
+
+    <!-- 用户表中的认证状态 -->
+    <update id="updateUserAuthStatus">
+        update user
+        <set>
+            <if test="authType == 'real_name'">
+                real_name_verified = #{status}
+            </if>
+            <if test="authType == 'driver_license'">
+                driver_license_verified = #{status}
+            </if>
+        </set>
+        where id = #{userId}
+    </update>
+
+
+    <!-- 新增实名认证 -->
+    <insert id="insertRealNameAuth" parameterType="com.example.entity.UserRealNameAuth">
+        insert into user_real_name_auth(
+            user_id, real_name, id_number,
+            id_front_image, id_back_image, status,
+            audit_remark, audit_time, create_time
+        ) values (
+                     #{userId}, #{realName}, #{idNumber},
+                     #{idFrontImage}, #{idBackImage}, #{status},
+                     #{auditRemark}, #{auditTime}, now()
+                 )
+    </insert>
+
+    <!-- 更新实名认证 -->
+    <update id="updateRealNameAuth" parameterType="com.example.entity.UserRealNameAuth">
+        update user_real_name_auth
+        set real_name = #{realName},
+            id_number = #{idNumber},
+            id_front_image = #{idFrontImage},
+            id_back_image = #{idBackImage},
+            status = #{status},
+            audit_remark = #{auditRemark},
+            audit_time = #{auditTime},
+            update_time = now()
+        where id = #{id}
+    </update>
+
+    <!-- 新增驾驶证认证 -->
+    <insert id="insertDriverLicenseAuth" parameterType="com.example.entity.UserDriverLicenseAuth">
+        insert into user_driver_license_auth(
+            user_id, driver_name, license_number, vehicle_type,
+            valid_start, valid_end, license_front_image, license_back_image,
+            status, audit_remark, audit_time, create_time
+        ) values (
+                     #{userId}, #{driverName}, #{licenseNumber}, #{vehicleType},
+                     #{validStart}, #{validEnd}, #{licenseFrontImage}, #{licenseBackImage},
+                     #{status}, #{auditRemark}, #{auditTime}, now()
+                 )
+    </insert>
+
+    <!-- 更新驾驶证认证 -->
+    <update id="updateDriverLicenseAuth" parameterType="com.example.entity.UserDriverLicenseAuth">
+        update user_driver_license_auth
+        set driver_name = #{driverName},
+            license_number = #{licenseNumber},
+            vehicle_type = #{vehicleType},
+            valid_start = #{validStart},
+            valid_end = #{validEnd},
+            license_front_image = #{licenseFrontImage},
+            license_back_image = #{licenseBackImage},
+            status = #{status},
+            audit_remark = #{auditRemark},
+            audit_time = #{auditTime},
+            update_time = now()
+        where id = #{id}
+    </update>
+</mapper>

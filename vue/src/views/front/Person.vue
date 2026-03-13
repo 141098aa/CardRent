@@ -72,27 +72,49 @@
 
         <div class="verification-content">
           <!-- 实名认证 -->
-          <div
-            class="verification-item"
-            :class="{ 'highlight-item': highlightAuth === 'realName' }"
-            ref="realNameItemRef"
-            @mouseenter="hoverAuth = 'realName'"
-            @mouseleave="hoverAuth = null">
+          <div class="verification-item">
             <div class="item-info">
               <span class="item-label">实名认证</span>
               <span class="item-desc">需年满18周岁，需上传身份证正反面</span>
             </div>
-            <div class="item-status" :class="{ verified: data.user.realNameVerified }">
+            <div
+              class="item-status"
+              :class="{
+                verified: data.user.realNameVerified === true,
+                pending: data.user.realNameStatus === 0,
+                failed: data.user.realNameStatus === 2
+              }">
               <el-icon v-if="data.user.realNameVerified"><CircleCheckFilled /></el-icon>
-              <span>{{ data.user.realNameVerified ? '已认证' : '未认证' }}</span>
+              <el-icon v-else-if="data.user.realNameStatus === 0"><Loading /></el-icon>
+              <el-icon v-else-if="data.user.realNameStatus === 2"><WarningFilled /></el-icon>
+              <span>{{
+                data.user.realNameVerified
+                  ? '已认证'
+                  : data.user.realNameStatus === 0
+                    ? '审核中'
+                    : data.user.realNameStatus === 2
+                      ? '审核失败'
+                      : '未认证'
+              }}</span>
             </div>
             <el-button
-              v-if="!data.user.realNameVerified"
+              v-if="!data.user.realName && !data.user.realNameStatus"
               type="primary"
               size="small"
               class="verify-btn"
               @click="showRealNameDialog = true">
               去认证
+            </el-button>
+            <el-button
+              v-else-if="data.user.realNameStatus === 2"
+              type="danger"
+              size="small"
+              class="verify-btn"
+              @click="showRealNameDetail = true">
+              查看原因
+            </el-button>
+            <el-button v-else-if="data.user.realNameStatus === 0" size="small" class="verify-btn" disabled>
+              审核中
             </el-button>
             <el-button v-else size="small" class="verify-btn" @click="showRealNameDetail = true"> 查看 </el-button>
           </div>
@@ -108,19 +130,56 @@
               <span class="item-label">驾驶证认证</span>
               <span class="item-desc">上传驾驶证正本照片，审核通过后可租车</span>
             </div>
-            <div class="item-status" :class="{ verified: data.user.driverLicenseVerified }">
+            <div
+              class="item-status"
+              :class="{
+                verified: data.user.driverLicenseVerified === true,
+                pending: data.user.driverLicenseStatus === 0,
+                failed: data.user.driverLicenseStatus === 2
+              }">
               <el-icon v-if="data.user.driverLicenseVerified"><CircleCheckFilled /></el-icon>
-              <span>{{ data.user.driverLicenseVerified ? '已认证' : '未认证' }}</span>
+              <el-icon v-else-if="data.user.driverLicenseStatus === 0"><Loading /></el-icon>
+              <el-icon v-else-if="data.user.driverLicenseStatus === 2"><WarningFilled /></el-icon>
+              <span>{{
+                data.user.driverLicenseVerified
+                  ? '已认证'
+                  : data.user.driverLicenseStatus === 0
+                    ? '审核中'
+                    : data.user.driverLicenseStatus === 2
+                      ? '审核失败'
+                      : '未认证'
+              }}</span>
             </div>
+            <!-- 未认证状态 - 显示上传按钮 -->
             <el-button
-              v-if="!data.user.driverLicenseVerified"
+              v-if="!data.user.driverName && data.user.driverLicenseStatus === undefined"
               type="primary"
               size="small"
               class="verify-btn"
               @click="showDriverLicenseDialog = true">
               上传
             </el-button>
-            <el-button v-else size="small" class="verify-btn" @click="showLicenseDetail = true"> 查看 </el-button>
+            <!-- 审核中状态 - 显示禁用按钮 -->
+            <el-button v-else-if="data.user.driverLicenseStatus === 0" size="small" class="verify-btn" disabled>
+              审核中
+            </el-button>
+            <!-- 审核失败状态 - 显示查看原因按钮 -->
+            <el-button
+              v-else-if="data.user.driverLicenseStatus === 2"
+              type="danger"
+              size="small"
+              class="verify-btn"
+              @click="showLicenseDetail = true">
+              查看原因
+            </el-button>
+            <!-- 已认证状态 - 显示查看按钮 -->
+            <el-button
+              v-else-if="data.user.driverLicenseVerified"
+              size="small"
+              class="verify-btn"
+              @click="showLicenseDetail = true"
+              >查看
+            </el-button>
           </div>
 
           <!-- 芝麻信用（可选） -->
@@ -140,10 +199,16 @@
         </div>
 
         <!-- 认证说明 -->
-        <div class="verification-note">
+        <div class="verification-note" v-if="showVerificationNote">
           <el-alert type="info" :closable="false" show-icon>
             <template #default>
-              完成实名认证和驾驶证认证后即可租车。认证信息仅用于租车审核，我们将严格保护您的隐私。
+              {{
+                data.user.realNameVerified && !data.user.driverLicenseVerified
+                  ? '驾驶证认证完成后即可租车。认证信息仅用于租车审核，我们将严格保护您的隐私。'
+                  : !data.user.realNameVerified && data.user.driverLicenseVerified
+                    ? '实名认证完成后即可租车。认证信息仅用于租车审核，我们将严格保护您的隐私。'
+                    : '完成实名认证和驾驶证认证后即可租车。认证信息仅用于租车审核，我们将严格保护您的隐私。'
+              }}
             </template>
           </el-alert>
         </div>
@@ -227,6 +292,11 @@
           <span class="detail-label">身份证号：</span>
           <span class="detail-value">{{ formatIdNumber(data.user.idNumber) || '--' }}</span>
         </div>
+        <!-- 添加审核备注显示 -->
+        <div class="detail-item" v-if="data.user.realNameRemark">
+          <span class="detail-label">审核备注：</span>
+          <span class="detail-value" style="color: #f56c6c">{{ data.user.realNameRemark }}</span>
+        </div>
         <div class="detail-images">
           <div class="image-item">
             <span class="image-label">身份证正面</span>
@@ -254,6 +324,17 @@
           </div>
         </div>
       </div>
+
+      <!-- 底部按钮区域 - 新增 -->
+      <template #footer>
+        <div class="dialog-footer" style="display: flex; justify-content: center; gap: 12px">
+          <el-button @click="showRealNameDetail = false">关 闭</el-button>
+          <!-- 当审核失败时显示重新上传按钮 -->
+          <el-button v-if="data.user.realNameStatus === 2" type="primary" @click="handleReuploadRealName">
+            重新上传
+          </el-button>
+        </div>
+      </template>
     </el-dialog>
 
     <!-- 驾驶证上传对话框 -->
@@ -277,7 +358,8 @@
               start-placeholder="开始日期"
               end-placeholder="结束日期"
               format="YYYY-MM-DD"
-              style="width: 100%" />
+              style="width: 100%"
+              :disabled-date="disabledDate" />
           </el-form-item>
 
           <!-- 驾驶证正面和副页并排 -->
@@ -319,7 +401,7 @@
                       class="license-image" />
                     <div v-else class="upload-placeholder">
                       <el-icon><Plus /></el-icon>
-                      <span>上传副页</span>
+                      <span>上传副页(可选)</span>
                     </div>
                   </div>
                 </el-upload>
@@ -352,6 +434,10 @@
           <span class="detail-label">准驾车型：</span>
           <span class="detail-value">{{ data.user.vehicleType || '--' }}</span>
         </div>
+        <div class="detail-item" v-if="data.user.driverLicenseRemark">
+          <span class="detail-label">审核备注：</span>
+          <span class="detail-value" style="color: #f56c6c">{{ data.user.driverLicenseRemark }}</span>
+        </div>
         <div class="detail-images">
           <div class="image-item">
             <span class="image-label">驾驶证正面</span>
@@ -379,6 +465,17 @@
           </div>
         </div>
       </div>
+
+      <!-- 底部按钮区域 - 新增 -->
+      <template #footer>
+        <div class="dialog-footer" style="display: flex; justify-content: center; gap: 12px">
+          <el-button @click="showLicenseDetail = false">关 闭</el-button>
+          <!-- 当审核失败时显示重新上传按钮 -->
+          <el-button v-if="data.user.driverLicenseStatus === 2" type="primary" @click="handleReuploadLicense">
+            重新上传
+          </el-button>
+        </div>
+      </template>
     </el-dialog>
   </div>
 </template>
@@ -386,12 +483,20 @@
 <script setup>
 import { reactive, ref, computed, onMounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import request from '../../utils/request'
 import { ElMessage } from 'element-plus'
-import { Plus, ArrowRight, UserFilled, CircleCheckFilled, InfoFilled } from '@element-plus/icons-vue'
+import {
+  Plus,
+  ArrowRight,
+  UserFilled,
+  CircleCheckFilled,
+  InfoFilled,
+  Loading,
+  WarningFilled
+} from '@element-plus/icons-vue'
+import { userProfileApi, userAuthApi } from '@/utils/api'
 
-const highlightAuth = ref(null) // 用于高亮显示
-const hoverAuth = ref(null) // 用于鼠标悬停
+const highlightAuth = ref(null)
+const hoverAuth = ref(null)
 
 // 创建 route 和 router 实例
 const route = useRoute()
@@ -409,39 +514,6 @@ const realNameFormRef = ref()
 const licenseFormRef = ref()
 const realNameItemRef = ref(null)
 const driverLicenseItemRef = ref(null)
-
-// 在页面加载时处理滚动和高亮
-onMounted(async () => {
-  const { tab, highlight } = route.query
-
-  if (tab === 'auth') {
-    await nextTick()
-
-    // 滚动到认证区域
-    setTimeout(() => {
-      if (verificationSection.value) {
-        verificationSection.value.scrollIntoView({
-          behavior: 'smooth',
-          block: 'start'
-        })
-
-        // 根据参数高亮对应的项目
-        if (highlight === 'realName') {
-          highlightAuth.value = 'realName'
-          // 2秒后取消高亮
-          setTimeout(() => {
-            highlightAuth.value = null
-          }, 3000)
-        } else if (highlight === 'driverLicense') {
-          highlightAuth.value = 'driverLicense'
-          setTimeout(() => {
-            highlightAuth.value = null
-          }, 3000)
-        }
-      }
-    }, 300)
-  }
-})
 
 // 对话框显示控制
 const showRealNameDialog = ref(false)
@@ -494,6 +566,52 @@ const licenseRules = {
   validPeriod: [{ required: true, message: '请选择有效期限', trigger: 'change' }],
   licenseFrontImage: [{ required: true, message: '请上传驾驶证正面', trigger: 'change' }]
 }
+// 禁用过去的日期（只能选择今天及之后的日期）
+const disabledDate = (time) => {
+  // 获取今天的开始时间（00:00:00）
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+
+  // 返回 true 表示禁用该日期
+  return time.getTime() < today.getTime()
+}
+
+// 是否显示认证说明（两个都认证通过就不显示）
+const showVerificationNote = computed(() => {
+  return !(data.user.realNameVerified && data.user.driverLicenseVerified)
+})
+
+const data = reactive({
+  user: JSON.parse(localStorage.getItem('system-user') || '{}'),
+  rules: {
+    username: [{ required: true, message: '请输入账号', trigger: 'blur' }],
+    name: [{ required: true, message: '请输入姓名', trigger: 'blur' }],
+    email: [{ type: 'email', message: '请输入有效的邮箱地址', trigger: 'blur' }]
+  }
+})
+
+if (!data.user?.id) {
+  ElMessage.error('请登录!')
+  router.push('/login')
+}
+
+// 认证状态计算
+const verificationStatus = computed(() => {
+  const realNameVerified = data.user.realNameVerified || false
+  const driverLicenseVerified = data.user.driverLicenseVerified || false
+  const hasRealNamePending = data.user.realName && !data.user.realNameVerified
+  const hasDriverLicensePending = data.user.driverName && !data.user.driverLicenseVerified
+
+  if (realNameVerified && driverLicenseVerified) {
+    return { type: 'success', text: '已全部认证' }
+  } else if (hasRealNamePending || hasDriverLicensePending) {
+    return { type: 'warning', text: '审核中' }
+  } else if (realNameVerified || driverLicenseVerified) {
+    return { type: 'warning', text: '部分认证' }
+  } else {
+    return { type: 'danger', text: '未认证' }
+  }
+})
 
 // 图片上传前验证
 const beforeImageUpload = (file) => {
@@ -511,43 +629,136 @@ const beforeImageUpload = (file) => {
   return true
 }
 
-// 认证状态计算
-const verificationStatus = computed(() => {
-  const realNameVerified = data.user.realNameVerified || false
-  const driverLicenseVerified = data.user.driverLicenseVerified || false
+// 加载认证状态
+const loadAuthStatus = () => {
+  // 查询实名认证状态
+  userAuthApi
+    .getRealNameStatus(data.user.id)
+    .then((res) => {
+      if (res.code === '200' && res.data) {
+        const status = res.data.status
+        data.user.realNameStatus = status
+        data.user.realNameVerified = status === 1
+        if (res.data.realName) {
+          data.user.realName = res.data.realName
+          data.user.idNumber = res.data.idNumber
+          data.user.idFrontImage = res.data.idFrontImage
+          data.user.idBackImage = res.data.idBackImage
+          data.user.realNameStatus = status
+          data.user.realNameRemark = res.data.auditRemark
+        } else {
+          clearRealNameData()
+        }
+      } else {
+        clearRealNameData()
+      }
+    })
+    .catch(() => {})
 
-  if (realNameVerified && driverLicenseVerified) {
-    return { type: 'success', text: '已全部认证' }
-  } else if (realNameVerified || driverLicenseVerified) {
-    return { type: 'warning', text: '部分认证' }
-  } else {
-    return { type: 'danger', text: '未认证' }
-  }
-})
+  // 查询驾驶证认证状态
+  userAuthApi
+    .getDriverLicenseStatus(data.user.id)
+    .then((res) => {
+      if (res.code === '200' && res.data) {
+        const status = res.data.status
+        data.user.driverLicenseStatus = status
+        data.user.driverLicenseVerified = status === 1
+        if (res.data.driverName) {
+          data.user.driverName = res.data.driverName
+          data.user.licenseNumber = res.data.licenseNumber
+          data.user.vehicleType = res.data.vehicleType
+          data.user.licenseFrontImage = res.data.licenseFrontImage
+          data.user.licenseBackImage = res.data.licenseBackImage
+          data.user.driverLicenseStatus = status
+          data.user.driverLicenseRemark = res.data.auditRemark
+        } else {
+          clearDriverLicenseData()
+        }
+      } else {
+        clearDriverLicenseData()
+      }
+    })
+    .catch(() => {})
+}
 
-const data = reactive({
-  user: JSON.parse(localStorage.getItem('system-user') || '{}'),
-  rules: {
-    username: [{ required: true, message: '请输入账号', trigger: 'blur' }],
-    name: [{ required: true, message: '请输入姓名', trigger: 'blur' }],
-    email: [{ type: 'email', message: '请输入有效的邮箱地址', trigger: 'blur' }]
-  }
-})
+// 清空实名认证数据
+const clearRealNameData = () => {
+  data.user.realName = null
+  data.user.idNumber = null
+  data.user.idFrontImage = null
+  data.user.idBackImage = null
+  data.user.realNameStatus = null
+  data.user.realNameRemark = null
+  data.user.realNameVerified = false // 重置为false
+}
 
-if (!data.user?.id) {
-  ElMessage.error('请登录!')
-  router.push('/login')
+// 清空驾驶证认证数据
+const clearDriverLicenseData = () => {
+  data.user.driverName = null
+  data.user.licenseNumber = null
+  data.user.vehicleType = null
+  data.user.licenseFrontImage = null
+  data.user.licenseBackImage = null
+  data.user.driverLicenseStatus = null
+  data.user.driverLicenseRemark = null
+  data.user.driverLicenseVerified = false // 重置为false
 }
 
 // 获取用户信息
 const loadUser = () => {
-  request.get('/user/selectById/' + data.user.id).then((res) => {
-    data.user = res.data
-    localStorage.setItem('system-user', JSON.stringify(res.data))
+  userProfileApi.getUserById(data.user.id).then((res) => {
+    const userData = res.data
+
+    // 将用户表中的状态值转换为前端需要的格式
+    if (userData.realNameVerified !== undefined) {
+      userData.realNameStatus = userData.realNameVerified
+      userData.realNameVerified = userData.realNameVerified === 1
+    }
+
+    if (userData.driverLicenseVerified !== undefined) {
+      userData.driverLicenseStatus = userData.driverLicenseVerified
+      userData.driverLicenseVerified = userData.driverLicenseVerified === 1
+    }
+
+    data.user = userData
+    localStorage.setItem('system-user', JSON.stringify(userData))
     emit('updateUser')
+    // 加载认证状态（会覆盖从用户表加载的状态，以认证表为准）
+    loadAuthStatus()
   })
 }
-loadUser()
+
+// 在页面加载时处理滚动和高亮，并加载数据
+onMounted(async () => {
+  const { tab, highlight } = route.query
+
+  if (tab === 'auth') {
+    await nextTick()
+    setTimeout(() => {
+      if (verificationSection.value) {
+        verificationSection.value.scrollIntoView({
+          behavior: 'smooth',
+          block: 'start'
+        })
+
+        if (highlight === 'realName') {
+          highlightAuth.value = 'realName'
+          setTimeout(() => {
+            highlightAuth.value = null
+          }, 3000)
+        } else if (highlight === 'driverLicense') {
+          highlightAuth.value = 'driverLicense'
+          setTimeout(() => {
+            highlightAuth.value = null
+          }, 3000)
+        }
+      }
+    }, 300)
+  }
+
+  // 加载用户数据（内部会调用 loadAuthStatus）
+  loadUser()
+})
 
 // 头像上传回调
 const handleFileUpload = (res) => {
@@ -578,14 +789,55 @@ const formatIdNumber = (idNumber) => {
   return idNumber.replace(/^(.{6})(?:\d+)(.{4})$/, '$1********$2')
 }
 
+// 重新上传实名认证
+const handleReuploadRealName = () => {
+  showRealNameDetail.value = false
+
+  realNameForm.realName = data.user.realName || ''
+  realNameForm.idNumber = data.user.idNumber || ''
+  realNameForm.idFrontImage = data.user.idFrontImage || ''
+  realNameForm.idBackImage = data.user.idBackImage || ''
+
+  showRealNameDialog.value = true
+}
+
+// 重新上传驾驶证认证
+const handleReuploadLicense = () => {
+  showLicenseDetail.value = false
+
+  licenseForm.name = data.user.driverName || ''
+  licenseForm.licenseNumber = data.user.licenseNumber || ''
+  licenseForm.vehicleType = data.user.vehicleType || ''
+
+  if (data.user.validStart && data.user.validEnd) {
+    licenseForm.validPeriod = [new Date(data.user.validStart), new Date(data.user.validEnd)]
+  } else {
+    licenseForm.validPeriod = []
+  }
+
+  licenseForm.licenseFrontImage = data.user.licenseFrontImage || ''
+  licenseForm.licenseBackImage = data.user.licenseBackImage || ''
+
+  showDriverLicenseDialog.value = true
+}
+
 // 提交实名认证
 const submitRealName = () => {
+  if (!realNameForm.idFrontImage) {
+    ElMessage.warning('请上传身份证正面照片')
+    return
+  }
+  if (!realNameForm.idBackImage) {
+    ElMessage.warning('请上传身份证背面照片')
+    return
+  }
+
   realNameFormRef.value?.validate((valid) => {
     if (!valid) return
 
     realNameLoading.value = true
-    request
-      .post('/user/realNameAuth', {
+    userAuthApi
+      .submitRealName({
         userId: data.user.id,
         realName: realNameForm.realName,
         idNumber: realNameForm.idNumber,
@@ -595,20 +847,11 @@ const submitRealName = () => {
       .then((res) => {
         if (res.code === '200') {
           ElMessage.success('实名认证提交成功，等待审核')
-          data.user.realNameVerified = true
-          // 更新用户信息
-          Object.assign(data.user, {
-            realName: realNameForm.realName,
-            idNumber: realNameForm.idNumber,
-            idFrontImage: realNameForm.idFrontImage,
-            idBackImage: realNameForm.idBackImage
-          })
-          localStorage.setItem('system-user', JSON.stringify(data.user))
           showRealNameDialog.value = false
-          // 清空表单
           Object.keys(realNameForm).forEach((key) => {
             realNameForm[key] = ''
           })
+          loadAuthStatus()
         } else {
           ElMessage.error(res.msg || '认证失败')
         }
@@ -621,12 +864,17 @@ const submitRealName = () => {
 
 // 提交驾驶证认证
 const submitLicense = () => {
+  if (!licenseForm.licenseFrontImage) {
+    ElMessage.warning('请上传驾驶证正面照片')
+    return
+  }
+
   licenseFormRef.value?.validate((valid) => {
     if (!valid) return
 
     licenseLoading.value = true
-    request
-      .post('/user/driverLicenseAuth', {
+    userAuthApi
+      .submitDriverLicense({
         userId: data.user.id,
         driverName: licenseForm.name,
         licenseNumber: licenseForm.licenseNumber,
@@ -639,18 +887,7 @@ const submitLicense = () => {
       .then((res) => {
         if (res.code === '200') {
           ElMessage.success('驾驶证认证提交成功，等待审核')
-          data.user.driverLicenseVerified = true
-          // 更新用户信息
-          Object.assign(data.user, {
-            driverName: licenseForm.name,
-            licenseNumber: licenseForm.licenseNumber,
-            vehicleType: licenseForm.vehicleType,
-            licenseFrontImage: licenseForm.licenseFrontImage,
-            licenseBackImage: licenseForm.licenseBackImage
-          })
-          localStorage.setItem('system-user', JSON.stringify(data.user))
           showDriverLicenseDialog.value = false
-          // 清空表单
           Object.keys(licenseForm).forEach((key) => {
             if (key === 'validPeriod') {
               licenseForm[key] = []
@@ -658,6 +895,7 @@ const submitLicense = () => {
               licenseForm[key] = ''
             }
           })
+          loadAuthStatus()
         } else {
           ElMessage.error(res.msg || '提交失败')
         }
@@ -681,8 +919,29 @@ const update = () => {
   formRef.value?.validate((valid) => {
     if (valid) {
       loading.value = true
-      request
-        .put('/user/update', data.user)
+
+      // 创建提交数据的副本，将布尔值转换为对应的状态码
+      const submitData = {
+        ...data.user,
+        // 如果已经有认证状态，保留原值；否则根据布尔值设置
+        realNameVerified:
+          data.user.realNameStatus !== undefined ? data.user.realNameStatus : data.user.realNameVerified ? 1 : 0,
+        driverLicenseVerified:
+          data.user.driverLicenseStatus !== undefined
+            ? data.user.driverLicenseStatus
+            : data.user.driverLicenseVerified
+              ? 1
+              : 0
+      }
+
+      // 移除前端临时使用的字段，避免发送到后端
+      delete submitData.realNameStatus
+      delete submitData.driverLicenseStatus
+      delete submitData.realNameRemark
+      delete submitData.driverLicenseRemark
+
+      userProfileApi
+        .updateUser(submitData)
         .then((res) => {
           loading.value = false
           if (res.code === '200') {
@@ -1344,6 +1603,21 @@ const resetForm = () => {
     margin: 0 8px;
   }
 
+  .item-status.pending {
+    color: #e6a23c;
+  }
+
+  .item-status.pending .el-icon {
+    color: #e6a23c;
+  }
+
+  .verify-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    background-color: #f5f7fa;
+    border-color: #e4e7ed;
+    color: #c0c4cc;
+  }
   .verify-btn {
     width: 100%;
     margin-top: 8px;

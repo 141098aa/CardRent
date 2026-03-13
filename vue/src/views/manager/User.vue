@@ -155,7 +155,7 @@ const data = reactive({
   total: 0,
   pageNum: 1,
   pageSize: 10,
-  formVisible: false, // 注意：原代码是 FormVisible，改为 formVisible 保持命名一致
+  formVisible: false,
   saving: false,
   form: {},
   rules: {
