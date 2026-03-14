@@ -6,15 +6,46 @@ const router = createRouter({
     { path: '/', redirect: '/login' },
     {
       path: '/manager',
-      component: () => import('@/views/Manager.vue'),
+      component: () => import('@/views/Layout.vue'),
       redirect: '/manager/home',
       children: [
-        { path: 'home', component: () => import('@/views/manager/Home.vue') },
-        { path: 'admin', component: () => import('@/views/manager/Admin.vue') },
-        { path: 'user', component: () => import('@/views/manager/User.vue') },
-        { path: 'person', component: () => import('@/views/manager/Person.vue') },
-        { path: 'password', component: () => import('@/views/manager/Password.vue') },
-        { path: 'user-auth', component: () => import('@/views/manager/UserAuth.vue') }
+        // 仪表盘
+        { path: 'home', component: () => import('@/views/manager/dashboard/Home.vue') },
+
+        // 用户管理
+        { path: 'user', component: () => import('@/views/manager/user/User.vue') },
+        { path: 'admin', component: () => import('@/views/manager/user/Admin.vue') },
+        { path: 'user-auth', component: () => import('@/views/manager/user/UserAuth.vue') },
+
+        // 车辆管理
+        { path: 'car/list', component: () => import('@/views/manager/car/CarList.vue') },
+        { path: 'car/add', component: () => import('@/views/manager/car/CarAdd.vue') },
+        { path: 'car/category', component: () => import('@/views/manager/car/CarCategory.vue') },
+        { path: 'car/brand', component: () => import('@/views/manager/car/CarBrand.vue') },
+
+        // 订单管理
+        { path: 'order', component: () => import('@/views/manager/order/Order.vue') },
+
+        // 内容管理
+        { path: 'forum', component: () => import('@/views/manager/content/Forum.vue') },
+        { path: 'news', component: () => import('@/views/manager/content/News.vue') },
+        { path: 'guide', component: () => import('@/views/manager/content/Guide.vue') },
+        { path: 'banner', component: () => import('@/views/manager/content/Banner.vue') },
+
+        // 财务管理
+        { path: 'recharge', component: () => import('@/views/manager/finance/Recharge.vue') },
+        { path: 'payment', component: () => import('@/views/manager/finance/Payment.vue') },
+        { path: 'refund', component: () => import('@/views/manager/finance/Refund.vue') },
+        { path: 'statistics', component: () => import('@/views/manager/finance/Statistics.vue') },
+
+        // 系统管理
+        { path: 'settings', component: () => import('@/views/manager/system/Settings.vue') },
+        { path: 'log', component: () => import('@/views/manager/system/Log.vue') },
+        { path: 'backup', component: () => import('@/views/manager/system/Backup.vue') },
+
+        // 个人中心
+        { path: 'person', component: () => import('@/views/manager/profile/Person.vue') },
+        { path: 'password', component: () => import('@/views/manager/profile/Password.vue') }
       ]
     },
     {
@@ -22,24 +53,31 @@ const router = createRouter({
       component: () => import('@/views/Front.vue'),
       redirect: '/front/home',
       children: [
-        { path: 'home', component: () => import('@/views/front/Home.vue') },
-        { path: 'person', component: () => import('@/views/front/Person.vue') },
-        { path: 'password', component: () => import('@/views/front/Password.vue') },
-        { path: 'rental', component: () => import('@/views/front/Rental.vue') },
-        { path: 'forum', component: () => import('@/views/front/Forum.vue') },
-        { path: 'news', component: () => import('@/views/front/News.vue') },
-        { path: 'guide', component: () => import('@/views/front/Guide.vue') },
-        { path: 'about', component: () => import('@/views/front/About.vue') },
-        { path: 'favorites', component: () => import('@/views/front/Favorites.vue') },
-        { path: 'recharge', component: () => import('@/views/front/Recharge.vue') },
-        { path: 'set-payment-password', component: () => import('@/views/front/SetPaymentPassword.vue') },
-        { path: 'car/:id', component: () => import('@/views/front/CarDetail.vue') },
-        { path: 'orders', component: () => import('@/views/front/Orders.vue'), meta: { requiresAuth: true } },
-        { path: 'news/:id', component: () => import('@/views/front/NewsDetail.vue'), meta: { title: '资讯详情' } }
+        // ========== 公共页面 ==========
+        { path: 'home', component: () => import('@/views/front/home/Home.vue') },
+        { path: 'guide', component: () => import('@/views/front/guide/Guide.vue') },
+        { path: 'about', component: () => import('@/views/front/about/About.vue') },
+
+        // ========== 租车相关 ==========
+        { path: 'rental', component: () => import('@/views/front/rental/Rental.vue') },
+        { path: 'car/:id', component: () => import('@/views/front/car/CarDetail.vue') },
+
+        // ========== 社区互动 ==========
+        { path: 'forum', component: () => import('@/views/front/forum/Forum.vue') },
+        { path: 'news', component: () => import('@/views/front/news/News.vue') },
+        { path: 'news/:id', component: () => import('@/views/front/news/NewsDetail.vue'), meta: { title: '资讯详情' } },
+
+        // ========== 个人中心 ==========
+        { path: 'person', component: () => import('@/views/front/user/Person.vue') },
+        { path: 'password', component: () => import('@/views/front/user/Password.vue') },
+        { path: 'favorites', component: () => import('@/views/front/user/Favorites.vue') },
+        { path: 'orders', component: () => import('@/views/front/user/Orders.vue'), meta: { requiresAuth: true } },
+        { path: 'recharge', component: () => import('@/views/front/user/Recharge.vue') },
+        { path: 'set-payment-password', component: () => import('@/views/front/user/SetPaymentPassword.vue') }
       ]
     },
-    { path: '/login', component: () => import('@/views/Login.vue') },
-    { path: '/register', component: () => import('@/views/Register.vue') }
+    { path: '/login', component: () => import('@/views/auth/Login.vue') },
+    { path: '/register', component: () => import('@/views/auth/Register.vue') }
   ]
 })
 

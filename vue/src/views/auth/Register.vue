@@ -1,10 +1,10 @@
 <template>
-  <div class="login-container">
-    <!-- 背景图片层  -->
+  <div class="register-container">
+    <!-- 背景图片层 -->
     <div class="background-layer"></div>
 
-    <!-- 登录卡片 -->
-    <div class="login-card">
+    <!-- 注册卡片 -->
+    <div class="register-card">
       <!-- 品牌区域 -->
       <div class="brand-area">
         <div class="brand-icon">
@@ -16,11 +16,12 @@
 
       <!-- 欢迎文字 -->
       <div class="welcome-text">
-        <h3>欢迎回来</h3>
+        <h3>创建账号</h3>
+        <p>加入我们，开启轻松出行</p>
       </div>
 
-      <!-- 登录表单 -->
-      <el-form :model="data.form" ref="formRef" :rules="data.rules" class="login-form">
+      <!-- 注册表单 -->
+      <el-form :model="data.form" ref="formRef" :rules="data.rules" class="register-form">
         <el-form-item prop="username">
           <el-input :prefix-icon="User" v-model="data.form.username" placeholder="账号" class="custom-input" />
         </el-form-item>
@@ -34,16 +35,21 @@
             class="custom-input" />
         </el-form-item>
 
+        <el-form-item prop="newPassword">
+          <el-input
+            :prefix-icon="Lock"
+            v-model="data.form.newPassword"
+            placeholder="确认密码"
+            show-password
+            class="custom-input" />
+        </el-form-item>
+
         <el-form-item prop="role">
           <el-select style="width: 100%" v-model="data.form.role" class="custom-select">
             <el-option value="普通用户" label="普通用户"></el-option>
             <el-option value="管理员" label="管理员"></el-option>
           </el-select>
         </el-form-item>
-
-        <div class="forgot-password">
-          <a href="#">忘记密码？</a>
-        </div>
 
         <!-- 协议勾选 -->
         <div class="agreement-checkbox">
@@ -58,17 +64,22 @@
         </div>
 
         <el-form-item>
-          <el-button type="primary" class="login-button" @click="login" :loading="loading" :disabled="!data.agree">
-            登 录
+          <el-button
+            type="primary"
+            class="register-button"
+            @click="register"
+            :loading="loading"
+            :disabled="!data.agree">
+            注 册
           </el-button>
         </el-form-item>
       </el-form>
 
-      <!-- 注册引导 -->
-      <div class="register-guide">没有账号？ <a href="/register" class="register-link">注册</a></div>
+      <!-- 登录引导 -->
+      <div class="login-guide">已有账号？ <a href="/login" class="login-link">立即登录</a></div>
     </div>
 
-    <!-- 协议弹窗 -->
+    <!-- 协议弹窗-->
     <el-dialog
       v-model="dialogVisible"
       :title="dialogTitle"
@@ -105,11 +116,24 @@ const countdown = ref(0)
 let timer = null
 
 const data = reactive({
-  form: { role: '管理员' },
+  form: { role: '普通用户' },
   agree: false,
   rules: {
     username: [{ required: true, message: '请输入账号', trigger: 'blur' }],
-    password: [{ required: true, message: '请输入密码', trigger: 'blur' }]
+    password: [{ required: true, message: '请输入密码', trigger: 'blur' }],
+    newPassword: [
+      { required: true, message: '请确认密码', trigger: 'blur' },
+      {
+        validator: (rule, value, callback) => {
+          if (value !== data.form.password) {
+            callback(new Error('两次输入的密码不一致'))
+          } else {
+            callback()
+          }
+        },
+        trigger: 'blur'
+      }
+    ]
   }
 })
 
@@ -117,7 +141,7 @@ const formRef = ref()
 
 // 开始倒计时
 const startCountdown = () => {
-  countdown.value = 5 // 5秒倒计时
+  countdown.value = 5
   if (timer) clearInterval(timer)
   timer = setInterval(() => {
     if (countdown.value > 0) {
@@ -202,10 +226,11 @@ const agreementContent = computed(() => {
 const openAgreement = (type) => {
   agreementType.value = type
   dialogVisible.value = true
-  startCountdown() // 打开弹窗时开始倒计时
+  startCountdown()
 }
 
-const login = () => {
+// 点击注册按钮
+const register = () => {
   if (!data.agree) {
     ElMessage.warning('请先同意用户服务协议和隐私政策')
     return
@@ -216,17 +241,12 @@ const login = () => {
       if (valid) {
         loading.value = true
         request
-          .post('/login', data.form)
+          .post('/register', data.form)
           .then((res) => {
             loading.value = false
             if (res.code === '200') {
-              ElMessage.success('登录成功')
-              if (res.data.role === '管理员') {
-                router.push('/manager/home')
-              } else {
-                router.push('/front/home')
-              }
-              localStorage.setItem('system-user', JSON.stringify(res.data))
+              ElMessage.success('账号注册成功！')
+              router.push('/login')
             } else {
               ElMessage.error(res.msg)
             }
@@ -243,7 +263,7 @@ const login = () => {
 </script>
 
 <style scoped>
-.login-container {
+.register-container {
   height: 100vh;
   overflow: hidden;
   display: flex;
@@ -253,7 +273,7 @@ const login = () => {
   background-color: #000;
 }
 
-/* 汽车背景图 */
+/* 汽车背景图  */
 .background-layer {
   position: absolute;
   top: 0;
@@ -268,10 +288,10 @@ const login = () => {
   z-index: 1;
 }
 
-/*登录卡片 */
-.login-card {
-  width: 360px;
-  padding: 30px 28px;
+/* 注册卡片  */
+.register-card {
+  width: 380px;
+  padding: 30px 32px;
   border-radius: 16px;
   background-color: rgba(255, 255, 255, 0.98);
   backdrop-filter: blur(8px);
@@ -293,18 +313,12 @@ const login = () => {
   }
 }
 
-/* 品牌区域  */
+/* 品牌区域 */
 .brand-area {
   text-align: center;
-  margin-bottom: 20px;
+  margin-bottom: 15px;
 }
-.brand-title {
-  font-size: 28px;
-  font-weight: 700;
-  color: #1e3a5f;
-  letter-spacing: 2px;
-  margin-bottom: 5px;
-}
+
 .brand-icon {
   width: 56px;
   height: 56px;
@@ -320,40 +334,52 @@ const login = () => {
 .car-icon {
   font-size: 28px;
 }
+
+.brand-title {
+  font-size: 24px;
+  font-weight: 700;
+  color: #1e3a5f;
+  letter-spacing: 2px;
+  margin-bottom: 5px;
+}
+
 .brand-subtitle {
   font-size: 14px;
   color: #7f8c8d;
   letter-spacing: 1px;
 }
-/* 欢迎文字 - */
+
+/* 欢迎文字 */
 .welcome-text {
   margin-bottom: 20px;
   text-align: center;
 }
 
 .welcome-text h3 {
-  font-size: 18px;
-  font-weight: 500;
-  color: #4a5568;
+  font-size: 20px;
+  font-weight: 600;
+  color: #2c3e50;
+  margin: 0 0 5px;
+}
+
+.welcome-text p {
+  font-size: 14px;
+  color: #7f8c8d;
   margin: 0;
-  position: relative;
-  display: inline-block;
 }
 
 .welcome-text h3::after {
   content: '';
-  position: absolute;
-  bottom: -6px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 30px;
+  display: block;
+  width: 40px;
   height: 2px;
   background: #c8a165;
+  margin: 8px auto 0;
   border-radius: 2px;
 }
 
-/* 登录表单  */
-.login-form {
+/* 注册表单 */
+.register-form {
   margin-top: 5px;
 }
 
@@ -361,7 +387,7 @@ const login = () => {
   margin-bottom: 18px !important;
 }
 
-/* 自定义输入框样式 - */
+/* 自定义输入框样式  */
 :deep(.custom-input .el-input__wrapper) {
   border-radius: 10px;
   padding: 2px 12px;
@@ -395,7 +421,7 @@ const login = () => {
   font-size: 16px;
 }
 
-/* 自定义选择框样式*/
+/* 自定义选择框样式  */
 :deep(.custom-select .el-input__wrapper) {
   border-radius: 10px;
   padding: 2px 12px;
@@ -410,31 +436,13 @@ const login = () => {
   font-size: 14px;
 }
 
-/* 忘记密码 */
-.forgot-password {
-  text-align: right;
-  margin: -8px 0 8px;
-}
-
-.forgot-password a {
-  color: #94a3b8;
-  font-size: 13px;
-  text-decoration: none;
-  transition: color 0.2s;
-}
-
-.forgot-password a:hover {
-  color: #c8a165;
-}
-
-/*  协议勾选样式 */
+/* 协议勾选样式 */
 .agreement-checkbox {
   margin-bottom: 16px;
   display: flex;
   align-items: center;
 }
 
-/* 自定义复选框样式 */
 :deep(.custom-checkbox .el-checkbox__input.is-checked .el-checkbox__inner) {
   background-color: #c8a165;
   border-color: #c8a165;
@@ -471,8 +479,8 @@ const login = () => {
   text-decoration: underline;
 }
 
-/* 登录按钮  */
-.login-button {
+/* 注册按钮  */
+.register-button {
   width: 100%;
   height: 44px;
   border-radius: 40px;
@@ -486,43 +494,44 @@ const login = () => {
   color: white;
 }
 
-.login-button:hover:not(:disabled) {
+.register-button:hover:not(:disabled) {
   background: linear-gradient(135deg, #b28b4f, #9e7a45);
   transform: translateY(-2px);
   box-shadow: 0 12px 24px rgba(200, 161, 101, 0.35);
 }
 
-.login-button:active:not(:disabled) {
+.register-button:active:not(:disabled) {
   transform: translateY(0);
   box-shadow: 0 4px 8px rgba(200, 161, 101, 0.2);
 }
 
-.login-button:disabled {
+.register-button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
   background: linear-gradient(135deg, #c8a165, #b28b4f);
 }
 
-.register-guide {
+/* 登录引导 */
+.login-guide {
   text-align: center;
   margin-top: 16px;
   font-size: 14px;
   color: #7f8c8d;
 }
 
-.register-link {
+.login-link {
   color: #c8a165;
   font-weight: 600;
   text-decoration: none;
   margin-left: 4px;
 }
 
-.register-link:hover {
+.login-link:hover {
   color: #b28b4f;
   text-decoration: underline;
 }
 
-/* 协议弹窗样式 */
+/* 协议弹窗样式  */
 :deep(.agreement-dialog .el-dialog__header) {
   border-bottom: 1px solid #e2e8f0;
   padding: 16px 24px;
@@ -563,10 +572,6 @@ const login = () => {
   margin: 8px 0;
 }
 
-.agreement-content p:last-child {
-  margin-bottom: 0;
-}
-
 .dialog-footer {
   display: flex;
   justify-content: flex-end;
@@ -589,13 +594,5 @@ const login = () => {
   border-color: #e9d5b5;
   cursor: not-allowed;
   opacity: 0.6;
-}
-
-/* 响应式调整 */
-@media (max-width: 480px) {
-  .login-card {
-    width: 90%;
-    padding: 25px 20px;
-  }
 }
 </style>

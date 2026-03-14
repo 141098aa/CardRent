@@ -718,35 +718,4 @@ const loadMoreCars = () => {
   transform: translateY(-2px);
   box-shadow: 0 8px 16px rgba(200, 161, 101, 0.2);
 } */
-
-/* 响应式 */
-@media (max-width: 1100px) {
-  .two-col {
-    grid-template-columns: 1fr;
-  }
-
-  .car-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
-  .notice-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-@media (max-width: 768px) {
-  .car-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-@media (max-width: 520px) {
-  .car-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .notice-grid {
-    grid-template-columns: 1fr;
-  }
-}
 </style>
