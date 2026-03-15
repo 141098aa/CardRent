@@ -100,7 +100,7 @@
     <!-- 排序和结果统计 -->
     <div class="result-bar">
       <div class="result-count">
-        找到 <span class="count-num">{{ filteredCars.length }}</span> 辆车型
+        找到 <span class="count-num">{{ total }}</span> 辆车型
       </div>
       <div class="sort-options">
         <span class="sort-label">排序：</span>
@@ -120,12 +120,12 @@
         <el-skeleton :rows="3" animated />
       </div>
 
-      <div v-else-if="filteredCars.length === 0" class="empty-state">
+      <div v-else-if="carList.length === 0" class="empty-state">
         <el-empty description="暂无符合条件的车型" />
       </div>
 
       <div v-else class="car-grid">
-        <div v-for="car in paginatedCars" :key="car.id" class="car-card" @click="goToCarDetail(car)">
+        <div v-for="car in carList" :key="car.id" class="car-card" @click="goToCarDetail(car)">
           <!-- 车辆图片 -->
           <div class="car-card__img">
             <img :src="car.image" :alt="car.name" />
@@ -141,7 +141,7 @@
           <!-- 车辆信息 -->
           <div class="car-card__body">
             <div class="car-card__header">
-              <div class="car-card__name">{{ car.brand }} · {{ car.model }}</div>
+              <div class="car-card__name">{{ car.brandName || car.brand }} · {{ car.model }}</div>
               <div class="car-card__rating">
                 <el-icon><StarFilled /></el-icon>
                 <span>{{ car.rating }}</span>
@@ -160,7 +160,7 @@
             </div>
 
             <div class="car-card__features">
-              <span v-for="feature in car.features.slice(0, 3)" :key="feature" class="feature-tag">
+              <span v-for="feature in car.features?.slice(0, 3)" :key="feature" class="feature-tag">
                 {{ feature }}
               </span>
             </div>
@@ -184,7 +184,7 @@
       <el-pagination
         v-model:current-page="currentPage"
         v-model:page-size="pageSize"
-        :total="filteredCars.length"
+        :total="total"
         :page-sizes="[8, 12, 16, 20]"
         layout="total, sizes, prev, pager, next, jumper"
         @size-change="handleSizeChange"
@@ -194,17 +194,20 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, watch, onMounted } from 'vue'
+import { ref, reactive, watch, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Search, Star, StarFilled } from '@element-plus/icons-vue'
+import { userCarApi } from '@/utils/api'
 
 const router = useRouter()
-const route = useRoute() // 创建 route 实例
+const route = useRoute()
 const loading = ref(false)
 const currentPage = ref(1)
 const pageSize = ref(8)
 const sortBy = ref('default')
+const total = ref(0)
+const carList = ref([])
 
 // 搜索表单
 const searchForm = reactive({
@@ -215,257 +218,81 @@ const searchForm = reactive({
   minPrice: null,
   maxPrice: null
 })
-// 筛选选项
-const brandOptions = ['全部', '特斯拉', '比亚迪', '宝马', '奔驰', '奥迪', '大众', '丰田', '本田']
-const seatOptions = [2, 4, 5, 7]
-const energyOptions = ['燃油', '纯电', '混动', '增程式']
 
-// 车辆数据
-const allCars = ref([
-  {
-    id: 1,
-    brand: '比亚迪',
-    model: '秦 PLUS DM-i',
-    seats: 5,
-    gear: '自动',
-    energy: '混动',
-    year: 2023,
-    price: 168,
-    rating: 4.8,
-    reviewCount: 328,
-    tag: '省油优选',
-    isFavorite: false,
-    features: ['智能互联', '倒车影像', '定速巡航'],
-    image: 'https://images.unsplash.com/photo-1552519507-da3b142c6e3d?auto=format&fit=crop&w=800&q=80'
-  },
-  {
-    id: 2,
-    brand: '丰田',
-    model: '凯美瑞',
-    seats: 5,
-    gear: '自动',
-    energy: '燃油',
-    year: 2023,
-    price: 198,
-    rating: 4.7,
-    reviewCount: 256,
-    tag: '商务舒适',
-    isFavorite: true,
-    features: ['真皮座椅', '天窗', '座椅加热'],
-    image: 'https://images.unsplash.com/photo-1541899481282-d53bffe3c35d?auto=format&fit=crop&w=800&q=80'
-  },
-  {
-    id: 3,
-    brand: '特斯拉',
-    model: 'Model 3',
-    seats: 5,
-    gear: '自动',
-    energy: '纯电',
-    year: 2024,
-    price: 268,
-    rating: 4.9,
-    reviewCount: 412,
-    tag: '科技驾控',
-    isFavorite: false,
-    features: ['自动驾驶', '大屏幕', '全景天窗'],
-    image: 'https://images.unsplash.com/photo-1553440569-bcc63803a83d?auto=format&fit=crop&w=800&q=80'
-  },
-  {
-    id: 4,
-    brand: '大众',
-    model: '途观 L',
-    seats: 5,
-    gear: '自动',
-    energy: '燃油',
-    year: 2023,
-    price: 228,
-    rating: 4.6,
-    reviewCount: 189,
-    tag: '空间充足',
-    isFavorite: false,
-    features: ['全景天窗', '电动尾门', '四驱'],
-    image: 'https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=800&q=80'
-  },
-  {
-    id: 5,
-    brand: '宝马',
-    model: '3系',
-    seats: 5,
-    gear: '自动',
-    energy: '燃油',
-    year: 2023,
-    price: 329,
-    rating: 4.8,
-    reviewCount: 276,
-    tag: '运动操控',
-    isFavorite: false,
-    features: ['运动模式', '哈曼卡顿', '抬头显示'],
-    image: 'https://images.unsplash.com/photo-1555215695-3004980ad54e?auto=format&fit=crop&w=800&q=80'
-  },
-  {
-    id: 6,
-    brand: '奔驰',
-    model: 'C级',
-    seats: 5,
-    gear: '自动',
-    energy: '燃油',
-    year: 2024,
-    price: 359,
-    rating: 4.9,
-    reviewCount: 345,
-    tag: '豪华舒适',
-    isFavorite: false,
-    features: ['氛围灯', '柏林之声', '座椅按摩'],
-    image: 'https://images.unsplash.com/photo-1618843479313-40f8afb4b4d8?auto=format&fit=crop&w=800&q=80'
-  },
-  {
-    id: 7,
-    brand: '奥迪',
-    model: 'A4L',
-    seats: 5,
-    gear: '自动',
-    energy: '燃油',
-    year: 2023,
-    price: 299,
-    rating: 4.7,
-    reviewCount: 234,
-    tag: '科技感',
-    isFavorite: false,
-    features: ['虚拟座舱', 'quattro', '矩阵大灯'],
-    image: 'https://images.unsplash.com/photo-1617814076367-b759c7d7e738?auto=format&fit=crop&w=800&q=80'
-  },
-  {
-    id: 8,
-    brand: '理想',
-    model: 'L7',
-    seats: 5,
-    gear: '自动',
-    energy: '增程式',
-    year: 2024,
-    price: 399,
-    rating: 4.8,
-    reviewCount: 167,
-    tag: '家庭首选',
-    isFavorite: false,
-    features: ['大彩电', '冰箱', '皇后座'],
-    image: 'https://images.pexels.com/photos/3349460/pexels-photo-3349460.jpeg'
-  },
-  {
-    id: 9,
-    brand: '蔚来',
-    model: 'ET5',
-    seats: 5,
-    gear: '自动',
-    energy: '纯电',
-    year: 2023,
-    price: 329,
-    rating: 4.7,
-    reviewCount: 198,
-    tag: '智能电动',
-    isFavorite: false,
-    features: ['换电', 'NOMI', '全景天窗'],
-    image:
-      'https://tse1-mm.cn.bing.net/th/id/OIP-C.YpR4PRpe3veIt1n-_8REtQHaE8?w=306&h=192&c=7&r=0&o=7&dpr=1.3&pid=1.7&rm=3'
-  },
-  {
-    id: 10,
-    brand: '小鹏',
-    model: 'P7',
-    seats: 7,
-    gear: '自动',
-    energy: '纯电',
-    year: 2023,
-    price: 279,
-    rating: 4.6,
-    reviewCount: 156,
-    tag: '运动轿跑',
-    isFavorite: false,
-    features: ['鹏翼门', '智能驾驶', '丹拿音响'],
-    image:
-      'https://tse4-mm.cn.bing.net/th/id/OIP-C.mA3jMP3rwQ653qRdA3J7dAHaFj?w=244&h=184&c=7&r=0&o=7&dpr=1.3&pid=1.7&rm=3'
+// 筛选选项 - 从API获取
+const brandOptions = ref([])
+const seatOptions = ref([])
+const energyOptions = ref([])
+
+// 加载筛选选项
+const loadFilterOptions = async () => {
+  try {
+    // 获取品牌列表
+    const brandRes = await userCarApi.getBrands()
+    if (brandRes.code === '200') {
+      brandOptions.value = ['全部', ...brandRes.data.map((item) => item.label)]
+    }
+
+    // 获取座位数选项
+    const seatsRes = await userCarApi.getSeats()
+    if (seatsRes.code === '200') {
+      seatOptions.value = seatsRes.data
+    }
+
+    // 获取能源类型选项
+    const energyRes = await userCarApi.getEnergies()
+    if (energyRes.code === '200') {
+      energyOptions.value = energyRes.data
+    }
+  } catch (error) {
+    console.error('加载筛选选项失败:', error)
   }
-])
+}
 
-// 过滤逻辑
-const filteredCars = computed(() => {
-  let result = [...allCars.value]
+// 加载车辆列表
+const loadCarList = async () => {
+  loading.value = true
+  try {
+    const params = {
+      pageNum: currentPage.value,
+      pageSize: pageSize.value,
+      keyword: searchForm.keyword || undefined,
+      brand: searchForm.brand === '全部' ? undefined : searchForm.brand,
+      seats: searchForm.seats || undefined,
+      energy: searchForm.energy || undefined,
+      minPrice: searchForm.minPrice || undefined,
+      maxPrice: searchForm.maxPrice || undefined,
+      sortBy: sortBy.value === 'default' ? undefined : sortBy.value
+    }
 
-  // 关键词搜索 - 智能搜索
-  if (searchForm.keyword) {
-    const keyword = searchForm.keyword.toLowerCase()
+    const res = await userCarApi.getCarList(params)
+    if (res.code === '200') {
+      carList.value = res.data.list || []
+      total.value = res.data.total || 0
 
-    // 解析搜索关键词
-    const seatsMatch = keyword.match(/^(\d+)座$/)
-    const priceMatch = keyword.match(/^(\d+)-(\d+)$/) // 支持"100-200"格式
-
-    result = result.filter((car) => {
-      // 座位数精确匹配
-      if (seatsMatch) {
-        return car.seats === parseInt(seatsMatch[1])
-      }
-
-      // 价格区间匹配
-      if (priceMatch) {
-        const min = parseInt(priceMatch[1])
-        const max = parseInt(priceMatch[2])
-        return car.price >= min && car.price <= max
-      }
-
-      // 普通文本搜索
-      return (
-        car.brand.toLowerCase().includes(keyword) ||
-        car.model.toLowerCase().includes(keyword) ||
-        car.energy.toLowerCase().includes(keyword) ||
-        car.tag?.toLowerCase().includes(keyword) ||
-        car.gear.toLowerCase().includes(keyword) ||
-        `${car.seats}座`.includes(keyword) // 支持搜索"5座"文本
-      )
-    })
+      // 从localStorage加载收藏状态
+      loadFavoriteStatus()
+    }
+  } catch (error) {
+    console.error('加载车辆列表失败:', error)
+    ElMessage.error('加载失败，请稍后重试')
+  } finally {
+    loading.value = false
   }
+}
 
-  // 品牌筛选
-  if (searchForm.brand && searchForm.brand !== '全部') {
-    result = result.filter((car) => car.brand === searchForm.brand)
-  }
-
-  // 座位筛选
-  if (searchForm.seats) {
-    result = result.filter((car) => car.seats === searchForm.seats)
-  }
-
-  // 能源筛选
-  if (searchForm.energy) {
-    result = result.filter((car) => car.energy === searchForm.energy)
-  }
-
-  // 价格区间
-  if (searchForm.minPrice !== null) {
-    result = result.filter((car) => car.price >= searchForm.minPrice)
-  }
-  if (searchForm.maxPrice !== null) {
-    result = result.filter((car) => car.price <= searchForm.maxPrice)
-  }
-
-  // 排序
-  if (sortBy.value === 'priceAsc') {
-    result.sort((a, b) => a.price - b.price)
-  } else if (sortBy.value === 'priceDesc') {
-    result.sort((a, b) => b.price - a.price)
-  }
-
-  return result
-})
-
-// 分页数据
-const paginatedCars = computed(() => {
-  const start = (currentPage.value - 1) * pageSize.value
-  const end = start + pageSize.value
-  return filteredCars.value.slice(start, end)
-})
+// 加载收藏状态
+const loadFavoriteStatus = () => {
+  const favorites = JSON.parse(localStorage.getItem('user-favorites') || '[]')
+  carList.value.forEach((car) => {
+    car.isFavorite = favorites.some((item) => item.id === car.id)
+  })
+}
 
 // 搜索
 const handleSearch = () => {
   currentPage.value = 1
+  loadCarList()
 }
 
 // 快速筛选映射 - 针对当前数据结构
@@ -475,7 +302,7 @@ const filterMap = {
   '7座': { type: 'seats', value: 7 },
 
   // 能源类型筛选
-  新能源: { type: 'energy', value: '纯电' }, // 注意：你的数据中新能源对应的是"纯电"
+  新能源: { type: 'energy', value: '纯电' },
   纯电: { type: 'energy', value: '纯电' },
   混动: { type: 'energy', value: '混动' },
 
@@ -503,7 +330,7 @@ const quickFilter = (filter) => {
       case 'seats':
         searchForm.seats = mapping.value
         searchForm.keyword = ''
-        searchForm.brand = '' // 清空其他筛选条件
+        searchForm.brand = ''
         searchForm.energy = ''
         break
       case 'energy':
@@ -528,41 +355,47 @@ const quickFilter = (filter) => {
         searchForm.keyword = filter
     }
   } else {
-    // 默认作为关键词搜索
     searchForm.keyword = filter
   }
 
-  // 重置到第一页
-  currentPage.value = 1
+  handleSearch()
 }
 
 // 收藏切换
 const toggleFavorite = (car) => {
   car.isFavorite = !car.isFavorite
 
-  // 获取当前收藏列表
   let favorites = JSON.parse(localStorage.getItem('user-favorites') || '[]')
 
   if (car.isFavorite) {
-    // 添加到收藏
     if (!favorites.some((item) => item.id === car.id)) {
-      favorites.push(car)
+      favorites.push({
+        id: car.id,
+        brand: car.brandName || car.brand,
+        model: car.model,
+        price: car.price,
+        image: car.image,
+        rating: car.rating,
+        seats: car.seats,
+        gear: car.gear,
+        energy: car.energy,
+        year: car.year,
+        tag: car.tag,
+        features: car.features
+      })
       ElMessage.success('已添加到收藏')
     }
   } else {
-    // 从收藏中移除
     favorites = favorites.filter((item) => item.id !== car.id)
     ElMessage.success('已取消收藏')
   }
 
-  // 保存到 localStorage
   localStorage.setItem('user-favorites', JSON.stringify(favorites))
 }
 
 // 立即租车
 const quickRent = (car) => {
-  ElMessage.success(`正在查看 ${car.brand} ${car.model} 详情`)
-  // 跳转到详情页
+  ElMessage.success(`正在查看 ${car.brandName || car.brand} ${car.model} 详情`)
   router.push(`/front/car/${car.id}`)
 }
 
@@ -575,33 +408,43 @@ const goToCarDetail = (car) => {
 const handleSizeChange = (val) => {
   pageSize.value = val
   currentPage.value = 1
+  loadCarList()
 }
 
 const handleCurrentChange = (val) => {
   currentPage.value = val
+  loadCarList()
   window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
-// 监听搜索条件变化，重置页码
-watch([searchForm, sortBy], () => {
-  currentPage.value = 1
-})
+// 监听搜索条件变化，加载数据
+watch(
+  [searchForm, sortBy],
+  () => {
+    currentPage.value = 1
+    loadCarList()
+  },
+  { deep: true }
+)
+
 // 页面加载时读取 URL 参数
-onMounted(() => {
+onMounted(async () => {
+  await loadFilterOptions()
+
   const keyword = route.query.keyword
   if (keyword) {
     searchForm.keyword = keyword
-    handleSearch()
   }
+
+  loadCarList()
 })
 
-// 监听路由参数变化（当在租车页面内点击其他分类时）
+// 监听路由参数变化
 watch(
   () => route.query.keyword,
   (newKeyword) => {
     if (newKeyword) {
       searchForm.keyword = newKeyword
-      handleSearch()
     }
   }
 )
@@ -1014,55 +857,5 @@ watch(
 .empty-state {
   padding: 60px 0;
   grid-column: 1 / -1;
-}
-
-/* 响应式 */
-@media (max-width: 1100px) {
-  .car-grid {
-    grid-template-columns: repeat(3, 1fr);
-  }
-}
-
-@media (max-width: 900px) {
-  .car-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
-  .filter-item {
-    flex-direction: column;
-    gap: 8px;
-  }
-
-  .filter-label {
-    line-height: 1.5;
-  }
-
-  .result-bar {
-    flex-direction: column;
-    gap: 12px;
-    align-items: flex-start;
-  }
-}
-
-@media (max-width: 600px) {
-  .car-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .search-box {
-    flex-direction: column;
-  }
-
-  .search-btn {
-    width: 100%;
-  }
-
-  .price-range {
-    flex-wrap: wrap;
-  }
-
-  .quick-filters {
-    flex-wrap: wrap;
-  }
 }
 </style>

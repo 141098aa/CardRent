@@ -1,4 +1,4 @@
-package com.example.controller;
+package com.example.controller.front;
 
 import com.example.common.Result;
 import com.example.entity.Admin;

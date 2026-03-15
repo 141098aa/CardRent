@@ -19,7 +19,6 @@ const router = createRouter({
 
         // 车辆管理
         { path: 'car/list', component: () => import('@/views/manager/car/CarList.vue') },
-        { path: 'car/add', component: () => import('@/views/manager/car/CarAdd.vue') },
         { path: 'car/category', component: () => import('@/views/manager/car/CarCategory.vue') },
         { path: 'car/brand', component: () => import('@/views/manager/car/CarBrand.vue') },
 
@@ -53,21 +52,21 @@ const router = createRouter({
       component: () => import('@/views/Front.vue'),
       redirect: '/front/home',
       children: [
-        // ========== 公共页面 ==========
+        // 公共页面
         { path: 'home', component: () => import('@/views/front/home/Home.vue') },
         { path: 'guide', component: () => import('@/views/front/guide/Guide.vue') },
         { path: 'about', component: () => import('@/views/front/about/About.vue') },
 
-        // ========== 租车相关 ==========
+        // 租车相关
         { path: 'rental', component: () => import('@/views/front/rental/Rental.vue') },
         { path: 'car/:id', component: () => import('@/views/front/car/CarDetail.vue') },
 
-        // ========== 社区互动 ==========
+        //  社区互动
         { path: 'forum', component: () => import('@/views/front/forum/Forum.vue') },
         { path: 'news', component: () => import('@/views/front/news/News.vue') },
         { path: 'news/:id', component: () => import('@/views/front/news/NewsDetail.vue'), meta: { title: '资讯详情' } },
 
-        // ========== 个人中心 ==========
+        //  个人中心
         { path: 'person', component: () => import('@/views/front/user/Person.vue') },
         { path: 'password', component: () => import('@/views/front/user/Password.vue') },
         { path: 'favorites', component: () => import('@/views/front/user/Favorites.vue') },

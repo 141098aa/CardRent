@@ -1,26 +1,16 @@
 import request from '@/utils/request'
 
+// 车辆管理API
+
 /**
- * 分页查询车辆
- * @param {Object} params 查询参数
- * @param {number} params.pageNum 当前页码
- * @param {number} params.pageSize 每页条数
- * @param {string} params.keyword 关键词搜索（品牌/型号）
- * @param {string} params.brand 品牌筛选
- * @param {string} params.category 分类筛选
- * @param {string} params.status 状态筛选
- * @param {number} params.minPrice 最低价格
- * @param {number} params.maxPrice 最高价格
- * @returns {Promise}
+ * 分页查询车辆列表
  */
 export function selectPage(params) {
   return request.get('/car/selectPage', { params })
 }
 
 /**
- * 获取车辆详情
- * @param {number|string} id 车辆ID
- * @returns {Promise}
+ * 查询车辆详情
  */
 export function selectById(id) {
   return request.get(`/car/selectById/${id}`)
@@ -28,33 +18,13 @@ export function selectById(id) {
 
 /**
  * 添加车辆
- * @param {Object} data 车辆信息
- * @param {string} data.brand 品牌
- * @param {string} data.model 型号
- * @param {number} data.year 年份
- * @param {number} data.price 日租价格
- * @param {number} data.stock 库存
- * @param {string} data.status 状态（available/rented/maintenance）
- * @param {string} data.image 图片URL
- * @param {string} data.description 描述
- * @param {number} data.seats 座位数
- * @param {string} data.gear 变速箱
- * @param {string} data.energy 能源类型
- * @param {string} data.tag 标签
- * @param {number} data.mileage 里程
- * @param {string} data.displacement 排量
- * @param {Array} data.features 特色配置
- * @param {Array} data.configs 详细配置
- * @returns {Promise}
  */
 export function add(data) {
   return request.post('/car/add', data)
 }
 
 /**
- * 修改车辆信息
- * @param {Object} data 车辆信息
- * @returns {Promise}
+ * 修改车辆
  */
 export function update(data) {
   return request.put('/car/update', data)
@@ -62,8 +32,6 @@ export function update(data) {
 
 /**
  * 删除车辆
- * @param {number|string} id 车辆ID
- * @returns {Promise}
  */
 export function deleteCar(id) {
   return request.delete(`/car/delete/${id}`)
@@ -71,8 +39,6 @@ export function deleteCar(id) {
 
 /**
  * 批量删除车辆
- * @param {Array} ids 车辆ID数组
- * @returns {Promise}
  */
 export function batchDelete(ids) {
   return request.delete('/car/batchDelete', { data: ids })
@@ -80,96 +46,81 @@ export function batchDelete(ids) {
 
 /**
  * 更新车辆状态
- * @param {number|string} id 车辆ID
- * @param {string} status 状态（available/rented/maintenance）
- * @returns {Promise}
  */
-export function updateStatus(id, status) {
-  return request.put(`/car/updateStatus/${id}`, { status })
+export function updateStatus(data) {
+  return request.put('/car/updateStatus', data)
+}
+
+// 品牌管理API
+
+/**
+ * 分页查询品牌列表
+ */
+export function selectBrandPage(params) {
+  return request.get('/car/brand/selectPage', { params })
 }
 
 /**
- * 获取所有品牌列表
- * @returns {Promise}
+ * 查询所有品牌（下拉框用）
  */
-export function getBrandList() {
-  return request.get('/car/brand/list')
+export function listAllBrands() {
+  return request.get('/car/brand/listAll')
 }
 
 /**
- * 获取所有分类列表
- * @returns {Promise}
+ * 添加品牌
  */
-export function getCategoryList() {
-  return request.get('/car/category/list')
+export function addBrand(data) {
+  return request.post('/car/brand/add', data)
 }
 
 /**
- * 获取热门推荐车辆
- * @param {number} limit 限制数量
- * @returns {Promise}
+ * 修改品牌
  */
-export function getHotCars(limit = 4) {
-  return request.get('/car/hot', { params: { limit } })
+export function updateBrand(data) {
+  return request.put('/car/brand/update', data)
 }
 
 /**
- * 获取相似车型推荐
- * @param {number|string} id 车辆ID
- * @param {number} limit 限制数量
- * @returns {Promise}
+ * 删除品牌
  */
-export function getSimilarCars(id, limit = 4) {
-  return request.get(`/car/similar/${id}`, { params: { limit } })
+export function deleteBrand(id) {
+  return request.delete(`/car/brand/delete/${id}`)
+}
+
+// 分类管理API
+
+/**
+ * 分页查询分类列表
+ */
+export function selectCategoryPage(params) {
+  return request.get('/car/category/selectPage', { params })
 }
 
 /**
- * 上传车辆图片
- * @param {FormData} formData 包含图片文件的FormData
- * @returns {Promise}
+ * 查询所有分类（下拉框用）
  */
-export function uploadImage(formData) {
-  return request.post('/car/upload/image', formData, {
-    headers: {
-      'Content-Type': 'multipart/form-data'
-    }
-  })
+export function listAllCategories() {
+  return request.get('/car/category/listAll')
 }
 
 /**
- * 批量上传车辆图片
- * @param {FormData} formData 包含多个图片文件的FormData
- * @returns {Promise}
+ * 添加分类
  */
-export function uploadImages(formData) {
-  return request.post('/car/upload/images', formData, {
-    headers: {
-      'Content-Type': 'multipart/form-data'
-    }
-  })
+export function addCategory(data) {
+  return request.post('/car/category/add', data)
 }
 
 /**
- * 导出车辆数据
- * @param {Object} params 查询参数
- * @returns {Promise}
+ * 修改分类
  */
-export function exportData(params) {
-  return request.get('/car/export', {
-    params,
-    responseType: 'blob'
-  })
+export function updateCategory(data) {
+  return request.put('/car/category/update', data)
 }
 
 /**
- * 导入车辆数据
- * @param {FormData} formData 包含Excel文件的FormData
- * @returns {Promise}
+ * 删除分类
  */
-export function importData(formData) {
-  return request.post('/car/import', formData, {
-    headers: {
-      'Content-Type': 'multipart/form-data'
-    }
-  })
+export function deleteCategory(id) {
+  return request.delete(`/car/category/delete/${id}`)
 }

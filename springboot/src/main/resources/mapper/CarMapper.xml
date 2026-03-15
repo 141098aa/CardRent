@@ -1,0 +1,333 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.mapper.CarMapper">
+
+    <!-- ==================== 管理端 ==================== -->
+
+    <!--  车辆管理-->
+    <resultMap id="CarResultMap" type="com.example.entity.car.Car">
+        <id property="id" column="id"/>
+        <result property="brandId" column="brand_id"/>
+        <result property="brandName" column="brand_name"/>
+        <result property="model" column="model"/>
+        <result property="seats" column="seats"/>
+        <result property="gear" column="gear"/>
+        <result property="energy" column="energy"/>
+        <result property="year" column="year"/>
+        <result property="price" column="price"/>
+        <result property="stock" column="stock"/>
+        <result property="status" column="status"/>
+        <result property="rating" column="rating"/>
+        <result property="reviewCount" column="review_count"/>
+        <result property="tag" column="tag"/>
+        <result property="mileage" column="mileage"/>
+        <result property="displacement" column="displacement"/>
+        <result property="description" column="description"/>
+        <result property="image" column="image"/>
+        <result property="features" column="features" javaType="java.util.List" jdbcType="VARCHAR"
+                typeHandler="com.example.handler.JsonListHandler"/>
+        <result property="configs" column="configs" javaType="java.util.List" jdbcType="VARCHAR"
+                typeHandler="com.example.handler.JsonListHandler"/>
+        <result property="pickupLocation" column="pickup_location"/>
+        <result property="returnLocation" column="return_location"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateTime" column="update_time"/>
+        <collection property="categoryIds" ofType="java.lang.Integer" select="selectCategoryIdsByCarId" column="id"/>
+    </resultMap>
+
+    <select id="selectCategoryIdsByCarId" resultType="java.lang.Integer">
+        select category_id from car_category_relation where car_id = #{carId}
+    </select>
+
+    <select id="selectAll" resultMap="CarResultMap">
+        select c.*, b.name as brand_name
+        from car c
+        left join car_brand b on c.brand_id = b.id
+        <where>
+            <if test="keyword != null and keyword != ''">
+                and (c.model like concat('%', #{keyword}, '%')
+                or b.name like concat('%', #{keyword}, '%')
+                or c.tag like concat('%', #{keyword}, '%'))
+            </if>
+            <if test="brandId != null">
+                and c.brand_id = #{brandId}
+            </if>
+            <if test="categoryId != null">
+                and c.id in (select car_id from car_category_relation where category_id = #{categoryId})
+            </if>
+            <if test="seats != null">
+                and c.seats = #{seats}
+            </if>
+            <if test="energy != null and energy != ''">
+                and c.energy = #{energy}
+            </if>
+            <if test="status != null and status != ''">
+                and c.status = #{status}
+            </if>
+            <if test="minPrice != null">
+                and c.price >= #{minPrice}
+            </if>
+            <if test="maxPrice != null">
+                and c.price &lt;= #{maxPrice}
+            </if>
+        </where>
+        order by c.create_time desc
+    </select>
+
+    <select id="selectById" resultMap="CarResultMap">
+        select c.*, b.name as brand_name
+        from car c
+                 left join car_brand b on c.brand_id = b.id
+        where c.id = #{id}
+    </select>
+
+    <insert id="insert" parameterType="com.example.entity.car.Car" useGeneratedKeys="true" keyProperty="id">
+        insert into car (
+            brand_id, model, seats, gear, energy, year, price, stock, status,
+            rating, review_count, tag, mileage, displacement, description,
+            image, features, configs, pickup_location, return_location
+        ) values (
+                     #{brandId}, #{model}, #{seats}, #{gear}, #{energy}, #{year}, #{price}, #{stock}, #{status},
+                     #{rating}, #{reviewCount}, #{tag}, #{mileage}, #{displacement}, #{description},
+                     #{image}, #{features, jdbcType=VARCHAR, typeHandler=com.example.handler.JsonListHandler},
+                     #{configs, jdbcType=VARCHAR, typeHandler=com.example.handler.JsonListHandler},
+                     #{pickupLocation}, #{returnLocation}
+                 )
+    </insert>
+
+    <update id="updateById" parameterType="com.example.entity.car.Car">
+        update car
+        set brand_id = #{brandId},
+            model = #{model},
+            seats = #{seats},
+            gear = #{gear},
+            energy = #{energy},
+            year = #{year},
+            price = #{price},
+            stock = #{stock},
+            status = #{status},
+            rating = #{rating},
+            review_count = #{reviewCount},
+            tag = #{tag},
+            mileage = #{mileage},
+            displacement = #{displacement},
+            description = #{description},
+            image = #{image},
+            features = #{features, jdbcType=VARCHAR, typeHandler=com.example.handler.JsonListHandler},
+            configs = #{configs, jdbcType=VARCHAR, typeHandler=com.example.handler.JsonListHandler},
+            pickup_location = #{pickupLocation},
+            return_location = #{returnLocation}
+        where id = #{id}
+    </update>
+
+    <delete id="deleteById">
+        delete from car where id = #{id}
+    </delete>
+
+    <insert id="insertCategoryRelations">
+        insert into car_category_relation (car_id, category_id) values
+        <foreach collection="categoryIds" item="categoryId" separator=",">
+            (#{carId}, #{categoryId})
+        </foreach>
+    </insert>
+
+    <delete id="deleteCategoryRelations">
+        delete from car_category_relation where car_id = #{carId}
+    </delete>
+
+    <!-- ==================== 品牌管理 ==================== -->
+
+    <select id="selectBrandAll" resultType="com.example.entity.car.CarBrand">
+        select * from car_brand
+        <where>
+            <if test="name != null and name != ''">
+                name like concat('%', #{name}, '%')
+            </if>
+        </where>
+        order by sort_order, create_time desc
+    </select>
+
+    <select id="selectBrandById" resultType="com.example.entity.car.CarBrand">
+        select * from car_brand where id = #{id}
+    </select>
+
+    <select id="selectBrandByName" resultType="com.example.entity.car.CarBrand">
+        select * from car_brand where name = #{name}
+    </select>
+
+    <insert id="insertBrand" parameterType="com.example.entity.car.CarBrand" useGeneratedKeys="true" keyProperty="id">
+        insert into car_brand (name, sort_order, status)
+        values (#{name}, #{sortOrder}, #{status})
+    </insert>
+
+    <update id="updateBrand" parameterType="com.example.entity.car.CarBrand">
+        update car_brand
+        set name = #{name},
+            sort_order = #{sortOrder},
+            status = #{status}
+        where id = #{id}
+    </update>
+
+    <delete id="deleteBrandById">
+        delete from car_brand where id = #{id}
+    </delete>
+
+    <select id="countByBrandId" resultType="int">
+        select count(*) from car where brand_id = #{brandId}
+    </select>
+
+    <!--  分类管理 -->
+
+    <select id="selectCategoryAll" resultType="com.example.entity.car.CarCategory">
+        select * from car_category
+        <where>
+            <if test="name != null and name != ''">
+                name like concat('%', #{name}, '%')
+            </if>
+        </where>
+        order by sort_order, create_time desc
+    </select>
+
+    <select id="selectCategoryById" resultType="com.example.entity.car.CarCategory">
+        select * from car_category where id = #{id}
+    </select>
+
+    <select id="selectCategoryByName" resultType="com.example.entity.car.CarCategory">
+        select * from car_category where name = #{name}
+    </select>
+
+    <insert id="insertCategory" parameterType="com.example.entity.car.CarCategory" useGeneratedKeys="true" keyProperty="id">
+        insert into car_category (name, code, sort_order, status)
+        values (#{name}, #{code}, #{sortOrder}, #{status})
+    </insert>
+
+    <update id="updateCategory" parameterType="com.example.entity.car.CarCategory">
+        update car_category
+        set name = #{name},
+            code = #{code},
+            sort_order = #{sortOrder},
+            status = #{status}
+        where id = #{id}
+    </update>
+
+    <delete id="deleteCategoryById">
+        delete from car_category where id = #{id}
+    </delete>
+
+    <select id="countByCategoryId" resultType="int">
+        select count(*) from car_category_relation where category_id = #{categoryId}
+    </select>
+
+    <!-- ==================== 用户端 ==================== -->
+
+    <!-- 用户端查询车辆列表 -->
+    <select id="selectFrontList" resultMap="CarResultMap">
+        select
+        c.id, c.brand_id, c.model, c.seats, c.gear, c.energy, c.year,
+        c.price, c.rating, c.review_count, c.tag, c.image, c.features,
+        b.name as brand_name
+        from car c
+        left join car_brand b on c.brand_id = b.id
+        <where>
+            c.status = 'available'
+            <if test="keyword != null and keyword != ''">
+                and (
+                b.name like concat('%', #{keyword}, '%')
+                or c.model like concat('%', #{keyword}, '%')
+                or c.tag like concat('%', #{keyword}, '%')
+                or c.energy like concat('%', #{keyword}, '%')
+                )
+            </if>
+            <if test="brandId != null">
+                and c.brand_id = #{brandId}
+            </if>
+            <if test="seats != null">
+                and c.seats = #{seats}
+            </if>
+            <if test="energy != null and energy != ''">
+                and c.energy = #{energy}
+            </if>
+            <if test="minPrice != null">
+                and c.price >= #{minPrice}
+            </if>
+            <if test="maxPrice != null">
+                and c.price &lt;= #{maxPrice}
+            </if>
+        </where>
+        <choose>
+            <when test="sortBy == 'priceAsc'">
+                order by c.price asc
+            </when>
+            <when test="sortBy == 'priceDesc'">
+                order by c.price desc
+            </when>
+            <otherwise>
+                order by c.create_time desc
+            </otherwise>
+        </choose>
+    </select>
+
+    <!-- 用户端查询车辆详情 -->
+    <select id="selectFrontDetail" resultMap="CarResultMap">
+        select
+            c.*,
+            b.name as brand_name
+        from car c
+                 left join car_brand b on c.brand_id = b.id
+        where c.id = #{id}
+    </select>
+
+    <!-- 热门推荐 - 基于评价数量 -->
+    <select id="selectHotRecommend" resultMap="CarResultMap">
+        select
+            c.id, c.brand_id, c.model, c.seats, c.gear, c.energy, c.year,
+            c.price, c.rating, c.review_count, c.tag, c.image, c.features,
+            b.name as brand_name
+        from car c
+                 left join car_brand b on c.brand_id = b.id
+        where c.status = 'available'
+        order by c.review_count desc, c.rating desc
+            limit #{limit}
+    </select>
+
+    <!-- 车型推荐 - 基于评分 -->
+    <select id="selectRatingRecommend" resultMap="CarResultMap">
+        select
+            c.id, c.brand_id, c.model, c.seats, c.gear, c.energy, c.year,
+            c.price, c.rating, c.review_count, c.tag, c.image, c.features,
+            b.name as brand_name
+        from car c
+                 left join car_brand b on c.brand_id = b.id
+        where c.status = 'available'
+        order by c.rating desc, c.review_count desc
+            limit #{limit}
+    </select>
+
+    <!-- 获取所有品牌列表 -->
+    <select id="selectBrandList" resultType="java.util.Map">
+        select
+            id as value,
+        name as label
+        from car_brand
+        where status = 1
+        order by sort_order, name
+    </select>
+
+    <!-- 获取所有能源类型 -->
+    <select id="selectEnergyList" resultType="java.lang.String">
+        select distinct energy
+        from car
+        where status = 'available' and energy is not null
+        order by energy
+    </select>
+
+    <!-- 获取所有座位数选项 -->
+    <select id="selectSeatsList" resultType="java.lang.Integer">
+        select distinct seats
+        from car
+        where status = 'available' and seats is not null
+        order by seats
+    </select>
+</mapper>

@@ -88,7 +88,7 @@
       </div>
     </div>
 
-    <!-- 推荐车辆 -->
+    <!-- 热门推荐车辆 -->
     <div class="section">
       <div class="section__row">
         <div class="section__title">热门推荐</div>
@@ -97,15 +97,53 @@
         </el-button>
       </div>
 
-      <div class="car-grid">
+      <div v-loading="loading" class="car-grid">
         <div v-for="car in hotCars" :key="car.id" class="car-card" @click="goRentalDetail(car)">
           <div class="car-card__img">
-            <img :src="car.cover" alt="" />
+            <img :src="car.image" :alt="car.model" />
             <div class="car-card__badge">{{ car.tag }}</div>
           </div>
 
           <div class="car-card__body">
-            <div class="car-card__name">{{ car.brand }} · {{ car.model }}</div>
+            <div class="car-card__name">{{ car.brandName }} · {{ car.model }}</div>
+            <div class="car-card__meta">
+              <span>{{ car.seats }}座</span>
+              <span class="dot">·</span>
+              <span>{{ car.gear }}</span>
+              <span class="dot">·</span>
+              <span>{{ car.energy }}</span>
+            </div>
+
+            <div class="car-card__footer">
+              <div class="car-card__price">
+                <span class="price">¥{{ car.price }}</span>
+                <span class="unit">/天起</span>
+              </div>
+              <div class="car-card__cta">查看详情</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 评分推荐车辆 -->
+    <div class="section">
+      <div class="section__row">
+        <div class="section__title">高分好评</div>
+        <el-button link type="primary" @click="go('/front/rental')">
+          查看更多 <el-icon><ArrowRight /></el-icon>
+        </el-button>
+      </div>
+
+      <div v-loading="ratingLoading" class="car-grid">
+        <div v-for="car in ratingCars" :key="car.id" class="car-card" @click="goRentalDetail(car)">
+          <div class="car-card__img">
+            <img :src="car.image" :alt="car.model" />
+            <div class="car-card__badge">评分 {{ car.rating }}</div>
+          </div>
+
+          <div class="car-card__body">
+            <div class="car-card__name">{{ car.brandName }} · {{ car.model }}</div>
             <div class="car-card__meta">
               <span>{{ car.seats }}座</span>
               <span class="dot">·</span>
@@ -154,21 +192,19 @@
         </div>
       </div>
     </div>
-
-    <!-- 加载更多 -->
-    <!-- <div class="load-more">
-      <el-button class="load-more-btn" @click="loadMoreCars"> 加载更多车型 </el-button>
-    </div> -->
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ArrowRight } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
+import { userCarApi } from '@/utils/api'
 
 const router = useRouter()
+const loading = ref(false)
+const ratingLoading = ref(false)
 
 // 轮播图数据
 const carouselItems = ref([
@@ -202,67 +238,57 @@ const carouselItems = ref([
   }
 ])
 
-// 热门车辆数据
-const hotCars = ref([
-  {
-    id: 1,
-    brand: '比亚迪',
-    model: '秦 PLUS DM-i',
-    seats: 5,
-    gear: '自动',
-    energy: '新能源',
-    price: 168,
-    tag: '省油优选',
-    cover: 'https://images.unsplash.com/photo-1552519507-da3b142c6e3d?auto=format&fit=crop&w=1200&q=70'
-  },
-  {
-    id: 2,
-    brand: '丰田',
-    model: '凯美瑞',
-    seats: 5,
-    gear: '自动',
-    energy: '燃油',
-    price: 198,
-    tag: '商务舒适',
-    cover: 'https://images.unsplash.com/photo-1541899481282-d53bffe3c35d?auto=format&fit=crop&w=1200&q=70'
-  },
-  {
-    id: 3,
-    brand: '特斯拉',
-    model: 'Model 3',
-    seats: 5,
-    gear: '自动',
-    energy: '纯电',
-    price: 268,
-    tag: '科技驾控',
-    cover: 'https://images.unsplash.com/photo-1553440569-bcc63803a83d?auto=format&fit=crop&w=1200&q=70'
-  },
-  {
-    id: 4,
-    brand: '大众',
-    model: '途观 L',
-    seats: 5,
-    gear: '自动',
-    energy: '燃油',
-    price: 228,
-    tag: '空间充足',
-    cover: 'https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=1200&q=70'
+// 热门推荐车辆
+const hotCars = ref([])
+
+// 评分推荐车辆
+const ratingCars = ref([])
+
+// 加载热门推荐（基于评价数量）
+const loadHotRecommend = async () => {
+  loading.value = true
+  try {
+    const res = await userCarApi.getHotRecommend(4)
+    if (res.code === '200') {
+      hotCars.value = res.data || []
+    }
+  } catch (error) {
+    console.error('加载热门推荐失败:', error)
+    ElMessage.error('加载热门推荐失败')
+  } finally {
+    loading.value = false
   }
-])
+}
+
+// 加载评分推荐（基于评分）
+const loadRatingRecommend = async () => {
+  ratingLoading.value = true
+  try {
+    const res = await userCarApi.getRatingRecommend(4)
+    if (res.code === '200') {
+      ratingCars.value = res.data || []
+    }
+  } catch (error) {
+    console.error('加载评分推荐失败:', error)
+    ElMessage.error('加载评分推荐失败')
+  } finally {
+    ratingLoading.value = false
+  }
+}
 
 // 跳转函数
 const go = (path) => {
   router.push(path)
-  // 跳转后滚动到顶部
   setTimeout(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }, 100)
 }
+
 // 快速搜索 - 跳转到租车页面并带搜索参数
 const quickSearch = (kw) => {
   router.push({
     path: '/front/rental',
-    query: { keyword: kw } // 传递关键词参数
+    query: { keyword: kw }
   })
 }
 
@@ -270,20 +296,20 @@ const quickSearch = (kw) => {
 const goFilter = (kw) => {
   router.push({
     path: '/front/rental',
-    query: { keyword: kw } // 传递关键词参数
+    query: { keyword: kw }
   })
 }
 
 // 跳转到车辆详情
 const goRentalDetail = (car) => {
-  router.push(`/front/car/${car.id}`) // 直接跳转到车辆详情页
+  router.push(`/front/car/${car.id}`)
 }
 
-// 加载更多车型
-const loadMoreCars = () => {
-  ElMessage.info('更多车型正在加载中...')
-  // 这里可以添加实际的分页加载逻辑
-}
+// 初始化加载
+onMounted(() => {
+  loadHotRecommend()
+  loadRatingRecommend()
+})
 </script>
 
 <style scoped>
@@ -695,27 +721,4 @@ const loadMoreCars = () => {
   font-size: 13px;
   line-height: 1.5;
 }
-
-/* 加载更多按钮 */
-/* .load-more {
-  text-align: center;
-  margin-top: 32px;
-}
-
-.load-more-btn {
-  padding: 12px 40px;
-  border-radius: 30px;
-  border: 1px solid #c8a165;
-  background: transparent;
-  color: #c8a165;
-  font-weight: 500;
-  transition: all 0.3s ease;
-}
-
-.load-more-btn:hover {
-  background: #c8a165;
-  color: #fff;
-  transform: translateY(-2px);
-  box-shadow: 0 8px 16px rgba(200, 161, 101, 0.2);
-} */
 </style>
