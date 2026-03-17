@@ -1,0 +1,182 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.mapper.OrderMapper">
+
+    <select id="selectAll" resultType="com.example.entity.order.Order">
+        select * from `order`
+        <where>
+            <if test="keyword != null and keyword != ''">
+                and (order_no like concat('%', #{keyword}, '%')
+                or user_name like concat('%', #{keyword}, '%')
+                or user_phone like concat('%', #{keyword}, '%')
+                or car_name like concat('%', #{keyword}, '%'))
+            </if>
+
+            <!-- 状态分组筛选 -->
+            <if test="statusGroup == 'pending'">
+                and status in ('pending_pay', 'pending_audit')
+            </if>
+            <if test="statusGroup == 'active'">
+                and status in ('pending_pickup', 'active')
+            </if>
+            <if test="statusGroup == 'completed'">
+                and status in ('completed', 'cancelled', 'refunded')
+            </if>
+
+            <!-- 时间范围筛选 -->
+            <if test="startDate != null and startDate != ''">
+                and create_time >= #{startDate}
+            </if>
+            <if test="endDate != null and endDate != ''">
+                and create_time &lt;= #{endDate}
+            </if>
+        </where>
+        order by create_time desc
+    </select>
+
+    <select id="selectById" resultType="com.example.entity.order.Order">
+        select * from `order` where id = #{id}
+    </select>
+
+    <update id="updateStatus">
+        update `order`
+        set status = #{status}
+        <if test="remark != null and remark != ''">
+            <if test="status == 'cancelled'">
+                , cancel_reason = #{remark}
+            </if>
+            <if test="status != 'cancelled'">
+                , audit_remark = #{remark}
+            </if>
+        </if>
+        where id = #{id}
+    </update>
+
+    <insert id="insertLog">
+        insert into order_log (order_id, order_no, from_status, to_status, operator,  operator_type,remark, create_time)
+        values (#{orderId}, #{orderNo}, #{fromStatus}, #{toStatus}, #{operator}, #{operatorType}, #{remark}, now())
+    </insert>
+
+    <select id="countByStatus" resultType="int">
+        select count(*) from `order` where status = #{status}
+    </select>
+
+    <select id="countByStatusGroup" resultType="int">
+        select count(*) from `order`
+        <where>
+            <if test="group == 'pending'">
+                and status in ('pending_pay', 'pending_audit')
+            </if>
+            <if test="group == 'active'">
+                and status in ('pending_pickup', 'active')
+            </if>
+            <if test="group == 'completed'">
+                and status in ('completed', 'cancelled', 'refunded')
+            </if>
+        </where>
+    </select>
+
+    <!-- 用户端订单查询 -->
+    <select id="selectUserOrders" resultType="com.example.entity.order.Order">
+        select * from `order`
+        where user_id = #{userId}
+        <if test="status != null and status != ''">
+            and status = #{status}
+        </if>
+        order by create_time desc
+    </select>
+
+    <select id="selectUserOrderById" resultType="com.example.entity.order.Order">
+        select * from `order`
+        where id = #{id} and user_id = #{userId}
+    </select>
+
+    <select id="countUserOrdersByStatus" resultType="int">
+        select count(*) from `order`
+        where user_id = #{userId} and status = #{status}
+    </select>
+
+    <select id="countUserOrdersGroupByStatus" resultType="java.util.Map">
+        select
+            status,
+            count(*) as count
+        from `order`
+        where user_id = #{userId}
+        group by status
+    </select>
+
+    <!-- 创建订单 -->
+    <insert id="insertOrder" parameterType="com.example.entity.order.Order" useGeneratedKeys="true" keyProperty="id">
+        insert into `order` (
+            order_no, user_id, user_name, user_phone,
+            car_id, car_name, car_image,car_seats, car_gear,
+            car_energy, daily_price,pickup_time, return_time,
+            days,pickup_location, return_location,total_price,
+            deposit, payment_method, status,remark, create_time
+        ) values (
+                     #{orderNo}, #{userId}, #{userName}, #{userPhone},
+                     #{carId}, #{carName}, #{carImage},#{carSeats}, #{carGear},
+                     #{carEnergy}, #{dailyPrice},#{pickupTime}, #{returnTime},
+                     #{days},#{pickupLocation}, #{returnLocation},#{totalPrice},
+                     #{deposit}, #{paymentMethod}, #{status},#{remark}, now()
+                 )
+    </insert>
+
+    <!-- 更新订单状态 -->
+    <update id="updateOrderStatus">
+        update `order`
+        set status = #{status},
+        <if test="paymentTime != null">
+            payment_time = #{paymentTime},
+        </if>
+        <if test="cancelReason != null">
+            cancel_reason = #{cancelReason},
+        </if>
+        update_time = now()
+        where id = #{id}
+        <if test="userId != null">
+            and user_id = #{userId}
+        </if>
+    </update>
+
+    <!-- 支付订单 -->
+    <update id="payOrder">
+        update `order`
+        set status = 'pending_pickup',
+            payment_method = #{paymentMethod},
+            payment_time = now(),
+            update_time = now()
+        where id = #{id} and user_id = #{userId} and status = 'pending_pay'
+    </update>
+
+    <!-- 申请退款 -->
+    <update id="applyRefund">
+        update `order`
+        set status = 'refunding',
+            cancel_reason = #{reason},
+            update_time = now()
+        where id = #{id} and user_id = #{userId} and status = 'pending_pickup'
+    </update>
+
+    <!-- 查询超时未支付的订单 -->
+    <select id="selectExpiredOrders" resultType="com.example.entity.order.Order">
+        select * from `order`
+        where status = 'pending_pay'
+          and create_time &lt;= #{expireTime}
+        order by create_time asc
+    </select>
+    <!-- 根据状态列表查询用户订单 -->
+    <select id="selectUserOrdersByStatusList" resultType="com.example.entity.order.Order">
+        select * from `order`
+        where user_id = #{userId}
+        <if test="statusList != null and statusList.size() > 0">
+            and status in
+            <foreach collection="statusList" item="status" open="(" separator="," close=")">
+                #{status}
+            </foreach>
+        </if>
+        order by create_time desc
+    </select>
+</mapper>

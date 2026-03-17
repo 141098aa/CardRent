@@ -14,34 +14,47 @@
         </div>
         <div class="stat-info">
           <span class="stat-label">全部订单</span>
-          <span class="stat-value">{{ orders.length }}</span>
+          <span class="stat-value">{{ orderStats.all || 0 }}</span>
         </div>
       </div>
+
       <div class="stat-card" @click="handleStatClick('pending')">
         <div class="stat-icon pending">
           <el-icon><Clock /></el-icon>
         </div>
         <div class="stat-info">
-          <span class="stat-label">待取车</span>
-          <span class="stat-value">{{ pendingCount }}</span>
+          <span class="stat-label">待处理</span>
+          <span class="stat-value">{{ orderStats.pending || 0 }}</span>
         </div>
       </div>
-      <div class="stat-card" @click="handleStatClick('active')">
+
+      <div class="stat-card" @click="handleStatClick('ongoing')">
         <div class="stat-icon active">
           <el-icon><Van /></el-icon>
         </div>
         <div class="stat-info">
           <span class="stat-label">进行中</span>
-          <span class="stat-value">{{ activeCount }}</span>
+          <span class="stat-value">{{ orderStats.ongoing || 0 }}</span>
         </div>
       </div>
+
       <div class="stat-card" @click="handleStatClick('completed')">
         <div class="stat-icon completed">
           <el-icon><CircleCheck /></el-icon>
         </div>
         <div class="stat-info">
           <span class="stat-label">已完成</span>
-          <span class="stat-value">{{ completedCount }}</span>
+          <span class="stat-value">{{ orderStats.completed || 0 }}</span>
+        </div>
+      </div>
+
+      <div class="stat-card" @click="handleStatClick('cancelled')">
+        <div class="stat-icon cancelled">
+          <el-icon><CircleClose /></el-icon>
+        </div>
+        <div class="stat-info">
+          <span class="stat-label">已取消</span>
+          <span class="stat-value">{{ orderStats.cancelled || 0 }}</span>
         </div>
       </div>
     </div>
@@ -50,10 +63,14 @@
     <div class="orders-content">
       <el-tabs v-model="activeTab" class="order-tabs" @tab-change="handleTabChange">
         <el-tab-pane label="全部订单" name="all"></el-tab-pane>
-        <el-tab-pane label="待取车" name="pending"></el-tab-pane>
-        <el-tab-pane label="进行中" name="active"></el-tab-pane>
+        <el-tab-pane label="待处理" name="pending"></el-tab-pane>
+        <!-- 待付款+待审核 -->
+        <el-tab-pane label="进行中" name="ongoing"></el-tab-pane>
+        <!-- 待取车+进行中 -->
         <el-tab-pane label="已完成" name="completed"></el-tab-pane>
+        <!-- 已完成 -->
         <el-tab-pane label="已取消" name="cancelled"></el-tab-pane>
+        <!-- 已取消+已退款 -->
       </el-tabs>
 
       <!-- 订单列表 -->
@@ -62,7 +79,7 @@
           <el-skeleton :rows="3" animated />
         </div>
 
-        <div v-else-if="filteredOrders.length === 0" class="empty-state">
+        <div v-else-if="orders.length === 0" class="empty-state">
           <el-empty description="暂无订单记录" />
         </div>
 
@@ -72,10 +89,10 @@
             <div class="order-header">
               <div class="order-info">
                 <span class="order-number">订单号：{{ order.orderNo }}</span>
-                <span class="order-time">下单时间：{{ order.createTime }}</span>
+                <span class="order-time">下单时间：{{ formatDateTime(order.createTime) }}</span>
               </div>
-              <el-tag :type="order.statusType" effect="light" size="small">
-                {{ order.statusText }}
+              <el-tag :type="getStatusType(order.status)" effect="light" size="small">
+                {{ getStatusText(order.status) }}
               </el-tag>
             </div>
 
@@ -86,9 +103,9 @@
                 <div class="car-details">
                   <h3 class="car-name">{{ order.carName }}</h3>
                   <div class="car-specs">
-                    <span>{{ order.carSeats }}座</span>
-                    <span>{{ order.carGear }}</span>
-                    <span>{{ order.carEnergy }}</span>
+                    <span>{{ order.carSeats || '5' }}座</span>
+                    <span>{{ order.carGear || '自动' }}</span>
+                    <span>{{ order.carEnergy || '燃油' }}</span>
                   </div>
                 </div>
               </div>
@@ -96,11 +113,11 @@
               <div class="order-details">
                 <div class="detail-row">
                   <span class="detail-label">取车时间：</span>
-                  <span class="detail-value">{{ order.pickupTime }}</span>
+                  <span class="detail-value">{{ formatDateTime(order.pickupTime) }}</span>
                 </div>
                 <div class="detail-row">
                   <span class="detail-label">还车时间：</span>
-                  <span class="detail-value">{{ order.returnTime }}</span>
+                  <span class="detail-value">{{ formatDateTime(order.returnTime) }}</span>
                 </div>
                 <div class="detail-row">
                   <span class="detail-label">租车天数：</span>
@@ -122,22 +139,40 @@
             <!-- 订单操作 -->
             <div class="order-footer">
               <div class="order-actions">
-                <el-button v-if="order.status === 'pending'" type="primary" size="small" @click="handlePickup(order)">
+                <!-- 待付款 - 显示支付按钮 -->
+                <el-button v-if="order.status === 'pending_pay'" type="primary" size="small" @click="handlePay(order)">
+                  立即支付
+                </el-button>
+
+                <!-- 待取车 - 显示确认取车按钮 -->
+                <el-button
+                  v-if="order.status === 'pending_pickup'"
+                  type="primary"
+                  size="small"
+                  @click="handlePickup(order)">
                   确认取车
                 </el-button>
+
+                <!-- 进行中 - 显示申请还车按钮 -->
                 <el-button v-if="order.status === 'active'" type="success" size="small" @click="handleReturn(order)">
                   申请还车
                 </el-button>
+
+                <!-- 待付款和待审核的订单可以取消 -->
                 <el-button
-                  v-if="order.status === 'pending' || order.status === 'active'"
+                  v-if="['pending_pay', 'pending_audit'].includes(order.status)"
                   size="small"
                   @click="handleCancel(order)">
                   取消订单
                 </el-button>
+
+                <!-- 已完成订单可以评价 -->
                 <el-button v-if="order.status === 'completed'" size="small" @click="handleReview(order)">
                   评价
                 </el-button>
-                <el-button size="small" @click="handleDetail(order)"> 查看详情 </el-button>
+
+                <!-- 查看详情按钮始终显示 -->
+                <el-button size="small" @click="handleDetail(order)">查看详情</el-button>
               </div>
             </div>
           </div>
@@ -145,11 +180,11 @@
       </div>
 
       <!-- 分页 -->
-      <div class="pagination" v-if="filteredOrders.length > 0">
+      <div class="pagination" v-if="orders.length > 0">
         <el-pagination
           v-model:current-page="currentPage"
           v-model:page-size="pageSize"
-          :total="filteredOrders.length"
+          :total="total"
           :page-sizes="[5, 10, 20]"
           layout="total, sizes, prev, pager, next, jumper"
           @size-change="handleSizeChange"
@@ -169,15 +204,21 @@
             </div>
             <div class="info-item">
               <span class="info-label">订单状态：</span>
-              <el-tag :type="currentOrder.statusType" size="small">{{ currentOrder.statusText }}</el-tag>
+              <el-tag :type="getStatusType(currentOrder.status)" size="small">
+                {{ getStatusText(currentOrder.status) }}
+              </el-tag>
+            </div>
+            <div class="info-item">
+              <span class="info-label">支付方式：</span>
+              <span class="info-value">{{ getPaymentMethodText(currentOrder.paymentMethod) || '--' }}</span>
             </div>
             <div class="info-item">
               <span class="info-label">下单时间：</span>
-              <span class="info-value">{{ currentOrder.createTime }}</span>
+              <span class="info-value">{{ formatDateTime(currentOrder.createTime) }}</span>
             </div>
             <div class="info-item">
               <span class="info-label">支付时间：</span>
-              <span class="info-value">{{ currentOrder.payTime || '--' }}</span>
+              <span class="info-value">{{ formatDateTime(currentOrder.paymentTime) || '--' }}</span>
             </div>
           </div>
         </div>
@@ -189,9 +230,9 @@
             <div class="detail-car-info">
               <div class="detail-car-name">{{ currentOrder.carName }}</div>
               <div class="detail-car-specs">
-                <span>{{ currentOrder.carSeats }}座</span>
-                <span>{{ currentOrder.carGear }}</span>
-                <span>{{ currentOrder.carEnergy }}</span>
+                <span>{{ currentOrder.carSeats || '5' }}座</span>
+                <span>{{ currentOrder.carGear || '自动' }}</span>
+                <span>{{ currentOrder.carEnergy || '燃油' }}</span>
               </div>
             </div>
           </div>
@@ -202,11 +243,11 @@
           <div class="info-grid">
             <div class="info-item">
               <span class="info-label">取车时间：</span>
-              <span class="info-value">{{ currentOrder.pickupTime }}</span>
+              <span class="info-value">{{ formatDateTime(currentOrder.pickupTime) }}</span>
             </div>
             <div class="info-item">
               <span class="info-label">还车时间：</span>
-              <span class="info-value">{{ currentOrder.returnTime }}</span>
+              <span class="info-value">{{ formatDateTime(currentOrder.returnTime) }}</span>
             </div>
             <div class="info-item">
               <span class="info-label">租车天数：</span>
@@ -226,21 +267,77 @@
         <div class="detail-section">
           <h4>费用明细</h4>
           <div class="price-detail">
+            <!-- 基础租金 -->
             <div class="price-row">
-              <span>日租金 (¥{{ currentOrder.dailyPrice }} × {{ currentOrder.days }}天)</span>
-              <span>¥{{ currentOrder.rentalPrice }}</span>
+              <span>基础租金 (¥{{ currentOrder.dailyPrice }} × {{ currentOrder.days }}天)</span>
+              <span>¥{{ currentOrder.dailyPrice * currentOrder.days }}</span>
             </div>
+
+            <!-- 动态调价明细 - 只在有调价时显示 -->
+            <div v-if="parsedAdjustments.length > 0" class="adjustments-list">
+              <div v-for="(adj, index) in parsedAdjustments" :key="index" class="adjustment-item">
+                <div class="adjustment-info">
+                  <span>{{ adj.name }}</span>
+                  <el-tooltip :content="adj.description" placement="top">
+                    <el-icon class="info-icon"><InfoFilled /></el-icon>
+                  </el-tooltip>
+                </div>
+                <span :class="adj.amount > 0 ? 'price-up' : 'price-down'">
+                  {{ adj.amount > 0 ? '+' : '' }}{{ adj.amount }} ({{ adj.description }})
+                </span>
+              </div>
+            </div>
+
+            <!-- 动态调整后租金 - 只在有调价时显示 -->
+            <div v-if="parsedAdjustments.length > 0" class="price-row adjusted-rent">
+              <span>调整后租金</span>
+              <span>¥{{ currentOrder.dynamicRent || currentOrder.dailyPrice * currentOrder.days }}</span>
+            </div>
+
+            <!-- 无调价时直接显示租金 -->
+            <!-- <div v-else class="price-row final-rent">
+              <span>租金</span>
+              <span class="normal-price">¥{{ currentOrder.dailyPrice * currentOrder.days }}</span>
+            </div> -->
+
+            <!-- 保险 -->
             <div class="price-row">
-              <span>基础保险</span>
-              <span>¥{{ currentOrder.insurancePrice || 0 }}</span>
+              <span>基础保险 (¥{{ currentOrder.insurancePrice || 50 }}/天 × {{ currentOrder.days }}天)</span>
+              <span>¥{{ (currentOrder.insurancePrice || 50) * currentOrder.days }}</span>
             </div>
+
+            <!-- 押金 -->
             <div class="price-row">
-              <span>手续费</span>
-              <span>¥{{ currentOrder.servicePrice || 0 }}</span>
+              <span>押金 (可退)</span>
+              <span>¥{{ currentOrder.deposit || 0 }}</span>
             </div>
+
+            <!-- 总计 -->
             <div class="price-row total">
               <span>总计</span>
               <span>¥{{ currentOrder.totalPrice }}</span>
+            </div>
+
+            <!-- 价格说明悬浮提示 -->
+            <div class="price-note">
+              <el-popover placement="top" :width="300" trigger="hover">
+                <template #reference>
+                  <span class="price-tip">
+                    <el-icon><QuestionFilled /></el-icon>
+                    价格说明
+                  </span>
+                </template>
+                <div class="price-policy">
+                  <h4>动态定价说明</h4>
+                  <p>我们的价格会随市场情况动态调整，确保您在合适的时间获得最优价格：</p>
+                  <ul>
+                    <li>周末溢价：周五至周日用车，价格上浮20%</li>
+                    <li>节假日溢价：国家法定节假日，价格上浮50%</li>
+                    <li>长租优惠：租期7天以上，享受9折优惠</li>
+                  </ul>
+                  <p>所有价格调整都会在订单确认页明细展示，请您放心预订。</p>
+                </div>
+              </el-popover>
             </div>
           </div>
         </div>
@@ -252,171 +349,179 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { List, Clock, Van, CircleCheck } from '@element-plus/icons-vue'
+import { List, Clock, Van, CircleCheck, CircleClose, InfoFilled, QuestionFilled } from '@element-plus/icons-vue'
+import { getMyOrders, getOrderStats, cancelOrder, payOrder } from '@/utils/api/user/order'
 
 // 统计卡片点击处理
 const handleStatClick = (tabName) => {
   activeTab.value = tabName
   currentPage.value = 1
-  // 可选：添加提示消息
-  //ElMessage.success(`已切换到${getTabName(tabName)}`)
+  loadOrders() // 重新加载订单
 }
 
-// 获取标签页中文名称
-const getTabName = (tabName) => {
-  const tabMap = {
-    all: '全部订单',
-    pending: '待取车',
-    active: '进行中',
-    completed: '已完成',
-    cancelled: '已取消'
-  }
-  return tabMap[tabName] || tabName
-}
 // 状态定义
 const loading = ref(false)
 const activeTab = ref('all')
 const currentPage = ref(1)
 const pageSize = ref(5)
+const total = ref(0)
 const showDetailDialog = ref(false)
 const currentOrder = ref(null)
-
-// 模拟订单数据
-const orders = ref([
-  {
-    id: 1,
-    orderNo: 'ORD202403150001',
-    createTime: '2024-03-15 14:30:22',
-    payTime: '2024-03-15 14:35:18',
-    status: 'pending', // pending: 待取车, active: 进行中, completed: 已完成, cancelled: 已取消
-    statusType: 'warning',
-    statusText: '待取车',
-    carName: '比亚迪 秦 PLUS DM-i',
-    carImage: 'https://images.unsplash.com/photo-1552519507-da3b142c6e3d?auto=format&fit=crop&w=800&q=80',
-    carSeats: 5,
-    carGear: '自动',
-    carEnergy: '混动',
-    dailyPrice: 168,
-    pickupTime: '2024-03-16 09:00',
-    returnTime: '2024-03-18 18:00',
-    days: 3,
-    pickupLocation: '杭州市西湖区文三路100号',
-    returnLocation: '杭州市西湖区文三路100号',
-    rentalPrice: 504,
-    insurancePrice: 50,
-    servicePrice: 20,
-    totalPrice: 574
-  },
-  {
-    id: 2,
-    orderNo: 'ORD202403140002',
-    createTime: '2024-03-14 10:15:33',
-    payTime: '2024-03-14 10:20:45',
-    status: 'active',
-    statusType: 'primary',
-    statusText: '进行中',
-    carName: '丰田 凯美瑞',
-    carImage: 'https://images.unsplash.com/photo-1541899481282-d53bffe3c35d?auto=format&fit=crop&w=800&q=80',
-    carSeats: 5,
-    carGear: '自动',
-    carEnergy: '燃油',
-    dailyPrice: 198,
-    pickupTime: '2024-03-15 10:00',
-    returnTime: '2024-03-17 10:00',
-    days: 2,
-    pickupLocation: '杭州市西湖区文三路100号',
-    returnLocation: '杭州市上城区解放路88号',
-    rentalPrice: 396,
-    insurancePrice: 40,
-    servicePrice: 20,
-    totalPrice: 456
-  },
-  {
-    id: 3,
-    orderNo: 'ORD202403100003',
-    createTime: '2024-03-10 09:45:12',
-    payTime: '2024-03-10 09:50:30',
-    status: 'completed',
-    statusType: 'success',
-    statusText: '已完成',
-    carName: '特斯拉 Model 3',
-    carImage: 'https://images.unsplash.com/photo-1553440569-bcc63803a83d?auto=format&fit=crop&w=800&q=80',
-    carSeats: 5,
-    carGear: '自动',
-    carEnergy: '纯电',
-    dailyPrice: 268,
-    pickupTime: '2024-03-11 09:00',
-    returnTime: '2024-03-13 09:00',
-    days: 2,
-    pickupLocation: '杭州市西湖区文三路100号',
-    returnLocation: '杭州市西湖区文三路100号',
-    rentalPrice: 536,
-    insurancePrice: 50,
-    servicePrice: 20,
-    totalPrice: 606
-  },
-  {
-    id: 4,
-    orderNo: 'ORD202403050004',
-    createTime: '2024-03-05 16:20:08',
-    payTime: '2024-03-05 16:25:15',
-    status: 'cancelled',
-    statusType: 'danger',
-    statusText: '已取消',
-    carName: '宝马 3系',
-    carImage: 'https://images.unsplash.com/photo-1555215695-3004980ad54e?auto=format&fit=crop&w=800&q=80',
-    carSeats: 5,
-    carGear: '自动',
-    carEnergy: '燃油',
-    dailyPrice: 329,
-    pickupTime: '2024-03-06 14:00',
-    returnTime: '2024-03-08 14:00',
-    days: 2,
-    pickupLocation: '杭州市西湖区文三路100号',
-    returnLocation: '杭州市西湖区文三路100号',
-    rentalPrice: 658,
-    insurancePrice: 60,
-    servicePrice: 20,
-    totalPrice: 738
-  }
-])
-
-// 统计数据
-const pendingCount = computed(() => orders.value.filter((o) => o.status === 'pending').length)
-const activeCount = computed(() => orders.value.filter((o) => o.status === 'active').length)
-const completedCount = computed(() => orders.value.filter((o) => o.status === 'completed').length)
-
-// 过滤后的订单
-const filteredOrders = computed(() => {
-  if (activeTab.value === 'all') return orders.value
-  return orders.value.filter((order) => order.status === activeTab.value)
+const orders = ref([])
+const orderStats = ref({
+  all: 0,
+  pending: 0,
+  ongoing: 0,
+  completed: 0,
+  cancelled: 0
 })
+
+// 获取状态样式
+const getStatusType = (status) => {
+  const map = {
+    pending_pay: 'warning',
+    pending_audit: 'warning',
+    pending_pickup: 'primary',
+    active: 'primary',
+    completed: 'success',
+    cancelled: 'info',
+    refunding: 'danger',
+    refunded: 'info'
+  }
+  return map[status] || 'info'
+}
+
+// 获取状态文本
+const getStatusText = (status) => {
+  const map = {
+    pending_pay: '待付款',
+    pending_audit: '待审核',
+    pending_pickup: '待取车',
+    active: '进行中',
+    completed: '已完成',
+    cancelled: '已取消',
+    refunding: '退款中',
+    refunded: '已退款'
+  }
+  return map[status] || status
+}
+// 获取支付方式文本
+const getPaymentMethodText = (method) => {
+  const map = {
+    wechat: '微信支付',
+    alipay: '支付宝',
+    unionpay: '银联支付',
+    wallet: '钱包余额'
+  }
+  return map[method] || method
+}
+// 格式化日期时间
+const formatDateTime = (datetime) => {
+  if (!datetime) return '--'
+  return datetime.replace('T', ' ').substring(0, 19)
+}
+// 解析调价明细
+const parsedAdjustments = computed(() => {
+  if (!currentOrder.value?.priceAdjustments) return []
+  try {
+    return JSON.parse(currentOrder.value.priceAdjustments)
+  } catch (e) {
+    console.error('解析调价明细失败', e)
+    return []
+  }
+})
+
+// 计算调整后租金
+const adjustedRent = computed(() => {
+  if (!currentOrder.value) return 0
+  if (currentOrder.value.dynamicRent) return currentOrder.value.dynamicRent
+  return currentOrder.value.dailyPrice * currentOrder.value.days
+})
+// 加载订单统计
+const loadOrderStats = async () => {
+  try {
+    const res = await getOrderStats()
+    if (res.code === '200') {
+      orderStats.value = res.data
+    } else {
+      ElMessage.error(res.msg || '加载订单统计失败')
+    }
+  } catch (error) {
+    console.error('加载订单统计失败:', error)
+    ElMessage.error(error.response?.data?.msg || error.message || '加载订单统计失败')
+  }
+}
+
+// 加载订单列表
+const loadOrders = async () => {
+  loading.value = true
+  try {
+    const params = {
+      pageNum: currentPage.value,
+      pageSize: pageSize.value
+    }
+
+    // 根据 activeTab 映射对应的状态
+    if (activeTab.value !== 'all') {
+      switch (activeTab.value) {
+        case 'pending':
+          params.status = 'pending_pay,pending_audit'
+          break
+        case 'ongoing':
+          params.status = 'pending_pickup,active'
+          break
+        case 'completed':
+          params.status = 'completed'
+          break
+        case 'cancelled':
+          params.status = 'cancelled,refunded'
+          break
+        default:
+          params.status = activeTab.value
+      }
+    }
+
+    const res = await getMyOrders(params)
+    if (res.code === '200') {
+      orders.value = res.data.list || []
+      total.value = res.data.total || 0
+    } else {
+      ElMessage.error(res.msg || '加载订单列表失败')
+    }
+  } catch (error) {
+    console.error('加载订单列表失败:', error)
+    ElMessage.error(error.response?.data?.msg || error.message || '加载订单列表失败')
+  } finally {
+    loading.value = false
+  }
+}
 
 // 分页订单
 const paginatedOrders = computed(() => {
-  const start = (currentPage.value - 1) * pageSize.value
-  const end = start + pageSize.value
-  return filteredOrders.value.slice(start, end)
+  return orders.value
 })
 
 // 标签页切换
 const handleTabChange = () => {
   currentPage.value = 1
+  loadOrders()
+  loadOrderStats() // 重新加载统计
 }
 
 // 分页变化
 const handleSizeChange = (val) => {
   pageSize.value = val
   currentPage.value = 1
+  loadOrders()
 }
 
 const handleCurrentChange = (val) => {
   currentPage.value = val
-  // 滚动到顶部
+  loadOrders()
   window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
-// 订单操作
+// 确认取车（实际应该是用户确认取车，通知后台）
 const handlePickup = (order) => {
   ElMessageBox.confirm('确认已取到车辆吗？', '确认取车', {
     confirmButtonText: '确认',
@@ -424,14 +529,15 @@ const handlePickup = (order) => {
     type: 'info'
   })
     .then(() => {
-      order.status = 'active'
-      order.statusType = 'primary'
-      order.statusText = '进行中'
+      // TODO: 调用确认取车API
       ElMessage.success('取车成功，祝您用车愉快！')
+      loadOrders()
+      loadOrderStats()
     })
     .catch(() => {})
 }
 
+// 申请还车
 const handleReturn = (order) => {
   ElMessageBox.confirm('确认已归还车辆吗？', '申请还车', {
     confirmButtonText: '确认',
@@ -439,47 +545,94 @@ const handleReturn = (order) => {
     type: 'info'
   })
     .then(() => {
-      order.status = 'completed'
-      order.statusType = 'success'
-      order.statusText = '已完成'
-      ElMessage.success('还车成功，感谢您的使用！')
+      // TODO: 调用申请还车API
+      ElMessage.success('还车申请已提交，等待确认')
+      loadOrders()
+      loadOrderStats()
     })
     .catch(() => {})
 }
 
+// 取消订单
 const handleCancel = (order) => {
-  ElMessageBox.confirm('确定要取消该订单吗？', '取消订单', {
+  ElMessageBox.prompt('请输入取消原因', '取消订单', {
     confirmButtonText: '确认取消',
     cancelButtonText: '再想想',
+    inputPlaceholder: '请输入取消原因',
     type: 'warning'
   })
-    .then(() => {
-      order.status = 'cancelled'
-      order.statusType = 'danger'
-      order.statusText = '已取消'
-      ElMessage.success('订单已取消')
+    .then(async ({ value }) => {
+      if (!value) {
+        ElMessage.warning('请输入取消原因')
+        return
+      }
+
+      try {
+        const res = await cancelOrder({
+          id: order.id,
+          reason: value
+        })
+        if (res.code === '200') {
+          ElMessage.success('订单已取消')
+          loadOrders()
+          loadOrderStats()
+        } else {
+          ElMessage.error(res.msg || '取消订单失败')
+        }
+      } catch (error) {
+        console.error('取消订单失败:', error)
+        ElMessage.error(error.response?.data?.msg || error.message || '取消订单失败')
+      }
     })
     .catch(() => {})
 }
 
+// 支付订单
+const handlePay = (order) => {
+  ElMessageBox.prompt('请输入支付密码', '支付确认', {
+    confirmButtonText: '确认支付',
+    cancelButtonText: '取消',
+    inputType: 'password',
+    inputPlaceholder: '请输入6位数字支付密码',
+    inputPattern: /^\d{6}$/,
+    inputErrorMessage: '支付密码必须为6位数字'
+  })
+    .then(async ({ value }) => {
+      try {
+        const res = await payOrder({
+          id: order.id,
+          paymentMethod: 'wallet',
+          paymentPassword: value
+        })
+        if (res.code === '200') {
+          ElMessage.success('支付成功')
+          loadOrders()
+          loadOrderStats()
+        } else {
+          ElMessage.error(res.msg || '支付失败')
+        }
+      } catch (error) {
+        console.error('支付失败:', error)
+        ElMessage.error(error.response?.data?.msg || error.message || '支付失败')
+      }
+    })
+    .catch(() => {})
+}
+
+// 评价
 const handleReview = (order) => {
   ElMessage.info('评价功能开发中...')
 }
 
+// 查看详情
 const handleDetail = (order) => {
   currentOrder.value = order
   showDetailDialog.value = true
 }
 
-// 加载数据
-const loadOrders = () => {
-  loading.value = true
-  setTimeout(() => {
-    loading.value = false
-  }, 500)
-}
-
+// 初始化
 onMounted(() => {
+  loadOrderStats()
   loadOrders()
 })
 </script>
@@ -527,8 +680,8 @@ onMounted(() => {
 /* 订单统计卡片 */
 .order-stats {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 20px;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 16px;
   margin-bottom: 30px;
 }
 
@@ -578,7 +731,10 @@ onMounted(() => {
   background: #f3e5f5;
   color: #7b1fa2;
 }
-
+.stat-icon.cancelled {
+  background: #fef2f2;
+  color: #ef4444;
+}
 .stat-info {
   flex: 1;
 }
@@ -855,61 +1011,156 @@ onMounted(() => {
   color: #c8a165;
   font-size: 16px;
 }
-
-/* 响应式 */
-@media (max-width: 900px) {
-  .order-stats {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
-  .order-body {
-    grid-template-columns: 1fr;
-    gap: 16px;
-  }
-
-  .order-price {
-    text-align: left;
-    flex-direction: row;
-    align-items: center;
-    gap: 8px;
-  }
-
-  .info-grid {
-    grid-template-columns: 1fr;
-  }
+/* 在样式表中添加 */
+.adjustments-list {
+  margin: 8px 0;
+  padding-left: 16px;
+  border-left: 2px solid #e2e8f0;
 }
 
-@media (max-width: 600px) {
-  .order-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
-  }
+.adjustment-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 0;
+  font-size: 13px;
+}
 
-  .order-info {
-    flex-direction: column;
-    gap: 4px;
-  }
+.adjustment-info {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: #64748b;
+}
 
-  .car-info {
-    flex-direction: column;
-  }
+.info-icon {
+  font-size: 14px;
+  color: #94a3b8;
+  cursor: help;
+}
 
-  .car-image {
-    width: 100%;
-    height: 120px;
-  }
+.price-up {
+  color: #f56c6c;
+  font-weight: 500;
+}
 
-  .order-actions {
-    flex-wrap: wrap;
-  }
+.price-down {
+  color: #67c23a;
+  font-weight: 500;
+}
 
-  .order-actions .el-button {
-    flex: 1 1 auto;
-  }
+.adjusted-rent {
+  font-weight: 600;
+  color: #409eff;
+  border-bottom: 1px dashed #e2e8f0;
+  padding-bottom: 8px;
+  margin-bottom: 8px;
+}
 
-  .order-stats {
-    grid-template-columns: 1fr;
-  }
+.price-note {
+  margin-top: 16px;
+  text-align: right;
+}
+
+.price-tip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #94a3b8;
+  cursor: pointer;
+}
+
+.price-tip:hover {
+  color: #409eff;
+}
+
+.price-policy {
+  padding: 8px;
+}
+
+.price-policy h4 {
+  margin: 0 0 8px 0;
+  font-size: 14px;
+  color: #1e2a3a;
+}
+
+.price-policy p {
+  margin: 4px 0;
+  font-size: 12px;
+  color: #64748b;
+  line-height: 1.6;
+}
+
+.price-policy ul {
+  margin: 8px 0;
+  padding-left: 16px;
+  color: #64748b;
+  font-size: 12px;
+}
+
+.price-policy li {
+  margin: 4px 0;
+}
+.adjustments-list {
+  margin: 8px 0;
+  padding-left: 12px;
+  border-left: 2px solid #e2e8f0;
+}
+
+.adjustment-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0;
+  font-size: 13px;
+}
+
+.adjustment-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.info-icon {
+  font-size: 14px;
+  color: #94a3b8;
+  cursor: help;
+}
+
+.info-icon:hover {
+  color: #409eff;
+}
+
+.price-up {
+  color: #ef4444;
+  font-weight: 500;
+}
+
+.price-down {
+  color: #10b981;
+  font-weight: 500;
+}
+
+.adjusted-rent {
+  padding-top: 6px;
+  margin-top: 6px;
+  border-top: 1px dashed #e2e8f0;
+  font-weight: 600;
+}
+
+.final-rent {
+  font-weight: 500;
+  color: #1e2a3a;
+  border-bottom: 1px dashed #e2e8f0;
+  padding-bottom: 8px;
+  margin-bottom: 8px;
+}
+
+.normal-price {
+  color: #1e2a3a;
+  font-size: 16px;
+  font-weight: 600;
 }
 </style>

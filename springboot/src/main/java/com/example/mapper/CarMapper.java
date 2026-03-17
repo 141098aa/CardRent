@@ -107,4 +107,7 @@ public interface CarMapper {
      * 获取所有座位数选项
      */
     List<Integer> selectSeatsList();
+    int decreaseStock(@Param("id") Integer id, @Param("count") Integer count);
+    void increaseStock(@Param("id") Integer id, @Param("count") Integer count);
+
 }

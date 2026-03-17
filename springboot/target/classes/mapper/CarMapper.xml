@@ -17,6 +17,8 @@
         <result property="energy" column="energy"/>
         <result property="year" column="year"/>
         <result property="price" column="price"/>
+        <result property="deposit" column="deposit"/>
+        <result property="insurancePrice" column="insurance_price"/>
         <result property="stock" column="stock"/>
         <result property="status" column="status"/>
         <result property="rating" column="rating"/>
@@ -85,13 +87,13 @@
 
     <insert id="insert" parameterType="com.example.entity.car.Car" useGeneratedKeys="true" keyProperty="id">
         insert into car (
-            brand_id, model, seats, gear, energy, year, price, stock, status,
-            rating, review_count, tag, mileage, displacement, description,
+            brand_id, model, seats, gear, energy, year, price, deposit, insurance_price,
+            stock, status, rating, review_count, tag, mileage, displacement, description,
             image, features, configs, pickup_location, return_location
         ) values (
-                     #{brandId}, #{model}, #{seats}, #{gear}, #{energy}, #{year}, #{price}, #{stock}, #{status},
-                     #{rating}, #{reviewCount}, #{tag}, #{mileage}, #{displacement}, #{description},
-                     #{image}, #{features, jdbcType=VARCHAR, typeHandler=com.example.handler.JsonListHandler},
+                     #{brandId}, #{model}, #{seats}, #{gear}, #{energy}, #{year}, #{price}, #{deposit},
+                     #{insurancePrice},#{stock}, #{status}, #{rating}, #{reviewCount}, #{tag}, #{mileage},
+                     #{displacement}, #{description},#{image}, #{features, jdbcType=VARCHAR, typeHandler=com.example.handler.JsonListHandler},
                      #{configs, jdbcType=VARCHAR, typeHandler=com.example.handler.JsonListHandler},
                      #{pickupLocation}, #{returnLocation}
                  )
@@ -106,6 +108,8 @@
             energy = #{energy},
             year = #{year},
             price = #{price},
+            deposit = #{deposit},
+            insurance_price = #{insurancePrice},
             stock = #{stock},
             status = #{status},
             rating = #{rating},
@@ -330,4 +334,13 @@
         where status = 'available' and seats is not null
         order by seats
     </select>
+
+    <update id="decreaseStock">
+        update car set stock = stock - #{count} where id = #{id} and stock >= #{count}
+    </update>
+
+    <update id="increaseStock">
+        update car set stock = stock + #{count} where id = #{id}
+    </update>
+
 </mapper>

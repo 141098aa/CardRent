@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.mapper.RentalDiscountMapper">
+
+    <resultMap id="BaseResultMap" type="com.example.entity.order.RentalDiscount">
+        <id property="id" column="id"/>
+        <result property="minDays" column="min_days"/>
+        <result property="maxDays" column="max_days"/>
+        <result property="discount" column="discount"/>
+        <result property="description" column="description"/>
+        <result property="status" column="status"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateTime" column="update_time"/>
+    </resultMap>
+
+    <select id="selectByDays" resultMap="BaseResultMap">
+        select * from rental_discount
+        where status = 1
+          and min_days &lt;= #{days} and max_days >= #{days}
+        order by discount asc
+            limit 1
+    </select>
+
+    <select id="selectAll" resultMap="BaseResultMap">
+        select * from rental_discount
+        where status = 1
+        order by min_days
+    </select>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        select * from rental_discount where id = #{id}
+    </select>
+
+    <insert id="insert" parameterType="com.example.entity.order.RentalDiscount" useGeneratedKeys="true" keyProperty="id">
+        insert into rental_discount (min_days, max_days, discount, description, status)
+        values (#{minDays}, #{maxDays}, #{discount}, #{description}, #{status})
+    </insert>
+
+    <update id="update" parameterType="com.example.entity.order.RentalDiscount">
+        update rental_discount
+        set min_days = #{minDays},
+            max_days = #{maxDays},
+            discount = #{discount},
+            description = #{description},
+            status = #{status}
+        where id = #{id}
+    </update>
+
+    <delete id="deleteById">
+        delete from rental_discount where id = #{id}
+    </delete>
+
+</mapper>

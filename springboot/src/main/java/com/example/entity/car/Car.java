@@ -29,6 +29,8 @@ public class Car {
     private String returnLocation;
     private LocalDateTime createTime;
     private LocalDateTime updateTime;
+    private BigDecimal insurancePrice;  // 基础保险费/天
+    private BigDecimal deposit;         // 押金金额
 
     // 分类ID列表（用于前端提交）
     private List<Integer> categoryIds;
@@ -231,5 +233,21 @@ public class Car {
 
     public void setCategoryIds(List<Integer> categoryIds) {
         this.categoryIds = categoryIds;
+    }
+
+    public BigDecimal getInsurancePrice() {
+        return insurancePrice;
+    }
+
+    public void setInsurancePrice(BigDecimal insurancePrice) {
+        this.insurancePrice = insurancePrice;
+    }
+
+    public BigDecimal getDeposit() {
+        return deposit;
+    }
+
+    public void setDeposit(BigDecimal deposit) {
+        this.deposit = deposit;
     }
 }

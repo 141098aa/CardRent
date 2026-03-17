@@ -204,9 +204,137 @@
       </div>
     </div>
 
-    <!-- 租车对话框（保持不变） -->
-    <el-dialog v-model="showRentDialog" title="确认租车" width="90%" max-width="400px" class="rent-dialog">
-      <!-- ... 对话框内容保持不变 ... -->
+    <!-- 租车对话框 -  -->
+    <el-dialog v-model="showRentDialog" title="确认租车" width="90%" max-width="500px" class="rent-dialog">
+      <div class="rent-content">
+        <div class="rent-summary">
+          <!-- 车辆信息 -->
+          <div class="rent-car-info">
+            <img :src="car?.image" class="rent-car-image" />
+            <div class="rent-car-detail">
+              <span class="rent-car-name">{{ car?.brand }} {{ car?.model }}</span>
+              <span class="rent-car-price">¥{{ car?.price }}/天</span>
+            </div>
+          </div>
+
+          <!-- 时间选择 -->
+          <el-form :model="rentForm" label-width="80px">
+            <el-form-item label="取车时间">
+              <el-date-picker
+                v-model="rentForm.pickupDate"
+                type="datetime"
+                placeholder="选择取车时间"
+                style="width: 30%"
+                :disabled-date="disabledDate" />
+            </el-form-item>
+            <el-form-item label="还车时间">
+              <el-date-picker
+                v-model="rentForm.returnDate"
+                type="datetime"
+                placeholder="选择还车时间"
+                style="width: 30%"
+                :disabled-date="disabledDate" />
+            </el-form-item>
+          </el-form>
+
+          <!-- 费用明细 - 显示动态调价 -->
+          <div class="price-detail" v-if="rentDays > 0 && dynamicPrice">
+            <!-- 基础租金 -->
+            <div class="price-row">
+              <span>基础租金 (¥{{ car?.price }} × {{ rentDays }}天)</span>
+              <span>¥{{ dynamicPrice.baseRent }}</span>
+            </div>
+
+            <!-- 动态调价明细 -->
+            <div v-if="dynamicPrice.priceAdjustments && parsedAdjustments.length > 0" class="adjustments-list">
+              <div v-for="(adj, index) in parsedAdjustments" :key="index" class="adjustment-item">
+                <div class="adjustment-info">
+                  <span>{{ adj.name }}</span>
+                  <el-tooltip :content="getAdjustmentTooltip(adj)" placement="top">
+                    <el-icon class="info-icon"><InfoFilled /></el-icon>
+                  </el-tooltip>
+                  <span class="adjustment-badge" :class="getAdjustmentBadgeClass(adj)">
+                    {{ adj.description }}
+                  </span>
+                </div>
+                <span :class="adj.amount > 0 ? 'price-up' : 'price-down'">
+                  {{ adj.amount > 0 ? '+' : '' }}{{ adj.amount }}
+                </span>
+              </div>
+            </div>
+
+            <!-- 调整后租金 - 只有在有调价时才显示 -->
+            <div v-if="hasAnyAdjustment" class="price-row adjusted-rent">
+              <span>调整后租金</span>
+              <span class="highlight-price">¥{{ dynamicPrice.dynamicRent }}</span>
+            </div>
+
+            <!-- 如果没有调价，直接显示基础租金作为最终租金 -->
+            <!-- <div v-else class="price-row final-rent">
+    <span>租金</span>
+    <span class="normal-price">¥{{ dynamicPrice.baseRent }}</span>
+  </div> -->
+
+            <!-- 保险费用 -->
+            <div class="price-row">
+              <span>基础保险 (¥{{ car?.insurancePrice || 50 }}/天)</span>
+              <span>¥{{ dynamicPrice.insuranceTotal }}</span>
+            </div>
+
+            <!-- 押金 -->
+            <div class="price-row">
+              <span>押金 (可退)</span>
+              <span class="deposit">¥{{ dynamicPrice.deposit }}</span>
+            </div>
+
+            <!-- 总计 -->
+            <div class="price-row total">
+              <div class="total-label">
+                <span>总计</span>
+                <el-popover placement="top" :width="280" trigger="hover">
+                  <template #reference>
+                    <el-icon class="price-tip-icon"><QuestionFilled /></el-icon>
+                  </template>
+                  <div class="price-policy">
+                    <h4>动态定价说明</h4>
+                    <p>我们的价格会随市场情况动态调整，确保您在合适的时间获得最优价格：</p>
+                    <ul>
+                      <li v-if="hasWeekendAdjustment">周末溢价：周五至周日用车，价格上浮20%</li>
+                      <li v-if="hasSeasonAdjustment">节假日溢价：国家法定节假日，价格上浮50%</li>
+                      <li v-if="hasDiscountAdjustment">长租优惠：租期7天以上，享受9折优惠</li>
+                    </ul>
+                    <p v-if="!hasAnyAdjustment">·当前无任何动态调价</p>
+                    <p>所有价格调整都会在订单确认页明细展示，请您放心预订。</p>
+                  </div>
+                </el-popover>
+              </div>
+              <span class="total-price">¥{{ dynamicPrice.totalPrice }}</span>
+            </div>
+
+            <!-- 押金说明 -->
+            <div class="price-note">
+              <el-icon><InfoFilled /></el-icon>
+              <span>押金将在还车后3-5个工作日内原路退回</span>
+            </div>
+
+            <!-- 价格提示 - 只在有调价时显示 -->
+            <div class="price-note" v-if="hasAnyAdjustment">
+              <el-icon><InfoFilled /></el-icon>
+              <span>{{ getPriceNoteText }}</span>
+            </div>
+          </div>
+
+          <!-- 未选择时间时的提示 -->
+          <div v-else-if="rentDays === 0" class="price-tip-message">请选择取车和还车时间查看费用明细</div>
+        </div>
+      </div>
+
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="showRentDialog = false">取 消</el-button>
+          <el-button type="primary" @click="confirmRent" :loading="rentLoading">确认租车</el-button>
+        </span>
+      </template>
     </el-dialog>
   </div>
 </template>
@@ -217,6 +345,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search, Star, StarFilled, Check, Location, Van, ShoppingCart, Warning } from '@element-plus/icons-vue'
 import { getCarDetail, getHotRecommend, getRatingRecommend } from '@/utils/api/user/car'
+import { createOrder, previewPrice } from '@/utils/api/user/order'
 
 const route = useRoute()
 const router = useRouter()
@@ -238,10 +367,98 @@ const rentDays = computed(() => {
   return Math.ceil(diff / (1000 * 60 * 60 * 24))
 })
 
-// 计算总价
-const totalPrice = computed(() => {
+// 租金小计
+const rentalPrice = computed(() => {
   return (car.value?.price || 0) * rentDays.value
 })
+
+// 保险费用
+const insuranceTotal = computed(() => {
+  return (car.value?.insurancePrice || 0) * rentDays.value
+})
+// 解析调价明细
+const parsedAdjustments = computed(() => {
+  if (!dynamicPrice.value?.priceAdjustments) return []
+  try {
+    return JSON.parse(dynamicPrice.value.priceAdjustments)
+  } catch (e) {
+    console.error('解析调价明细失败', e)
+    return []
+  }
+})
+
+// 判断是否有各种调价
+const hasWeekendAdjustment = computed(() => {
+  return parsedAdjustments.value.some((adj) => adj.type === 'weekend')
+})
+
+const hasSeasonAdjustment = computed(() => {
+  return parsedAdjustments.value.some((adj) => adj.type === 'season')
+})
+
+const hasDiscountAdjustment = computed(() => {
+  return parsedAdjustments.value.some((adj) => adj.type === 'discount')
+})
+
+const hasAnyAdjustment = computed(() => {
+  return parsedAdjustments.value.length > 0
+})
+
+// 获取调价提示文本
+const getPriceNoteText = computed(() => {
+  const texts = []
+  if (hasWeekendAdjustment.value) texts.push('周末用车价格上浮20%')
+  if (hasSeasonAdjustment.value) texts.push('节假日用车价格上浮50%')
+  if (hasDiscountAdjustment.value) texts.push('长租优惠已自动应用')
+
+  if (texts.length === 0) return ''
+  if (texts.length === 1) return `价格说明：${texts[0]}`
+  return `价格说明：${texts.join('，')}`
+})
+
+// 获取调价项的提示信息
+const getAdjustmentTooltip = (adj) => {
+  switch (adj.type) {
+    case 'weekend':
+      return '周五至周日用车，价格上浮20%'
+    case 'season':
+      return '国家法定节假日用车，价格上浮50%'
+    case 'discount':
+      return '长租优惠已自动应用'
+    default:
+      return adj.description
+  }
+}
+
+// 获取调价项的样式类
+const getAdjustmentBadgeClass = (adj) => {
+  if (adj.type === 'discount') return 'discount-badge'
+  return 'premium-badge'
+}
+// 总金额
+const totalPrice = computed(() => {
+  if (dynamicPrice.value) {
+    return dynamicPrice.value.totalPrice
+  }
+  const rent = rentalPrice.value
+  const insurance = insuranceTotal.value
+  const deposit = car.value?.deposit || 0
+  return rent + insurance + deposit
+})
+
+// 支付金额（不含押金）
+const payAmount = computed(() => {
+  return rentalPrice.value + insuranceTotal.value
+})
+
+// 禁用过去的日期
+const disabledDate = (time) => {
+  // 获取今天的开始时间（00:00:00）
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  // 返回 true 表示禁用，false 表示可选
+  return time.getTime() < today.getTime()
+}
 
 // 车辆数据
 const car = ref(null)
@@ -386,18 +603,27 @@ const toggleFavorite = () => {
 
 // 检查认证状态
 const checkAuthStatus = () => {
-  const realNameVerified = user.value.realNameVerified || false
-  const driverLicenseVerified = user.value.driverLicenseVerified || false
+  // 直接从 localStorage 获取最新数据
+  const userInfo = JSON.parse(localStorage.getItem('system-user') || '{}')
+
+  // 检查真实状态码：只有状态为1才算通过
+  const realNamePassed = userInfo.realNameStatus === 1
+  const driverLicensePassed = userInfo.driverLicenseStatus === 1
 
   return {
-    realNameVerified,
-    driverLicenseVerified,
-    allVerified: realNameVerified && driverLicenseVerified
+    realNameVerified: realNamePassed,
+    driverLicenseVerified: driverLicensePassed,
+    allVerified: realNamePassed && driverLicensePassed,
+    // 添加状态码供前端显示
+    realNameStatus: userInfo.realNameStatus,
+    driverLicenseStatus: userInfo.driverLicenseStatus
   }
 }
 
 // 处理租车点击
 const handleRent = () => {
+  if (!checkLogin()) return
+
   const auth = checkAuthStatus()
 
   if (!auth.allVerified) {
@@ -437,8 +663,38 @@ const handleRent = () => {
   showRentDialog.value = true
 }
 
+// 添加响应式变量存储动态价格
+const dynamicPrice = ref(null)
+
+// 价格预览监听
+watch([() => rentForm.pickupDate, () => rentForm.returnDate], async () => {
+  if (rentForm.pickupDate && rentForm.returnDate && rentDays.value >= 1 && car.value) {
+    try {
+      // 将日期转换为 ISO 字符串并去除时区信息
+      const formatDate = (date) => {
+        const d = new Date(date)
+        // 格式化为 YYYY-MM-DDTHH:mm:ss
+        return d.toISOString().split('.')[0] // 去掉毫秒和时区
+      }
+
+      const res = await previewPrice({
+        carId: car.value.id,
+        pickupTime: formatDate(rentForm.pickupDate),
+        returnTime: formatDate(rentForm.returnDate)
+      })
+      if (res.code === '200') {
+        dynamicPrice.value = res.data
+      }
+    } catch (error) {
+      console.error('获取价格预览失败:', error)
+    }
+  } else {
+    dynamicPrice.value = null
+  }
+})
+
 // 确认租车
-const confirmRent = () => {
+const confirmRent = async () => {
   if (!rentForm.pickupDate || !rentForm.returnDate) {
     ElMessage.warning('请选择取车和还车时间')
     return
@@ -451,13 +707,52 @@ const confirmRent = () => {
 
   rentLoading.value = true
 
-  // 模拟租车成功（订单接口暂无）
-  setTimeout(() => {
+  try {
+    // 从 localStorage 获取用户信息
+    const userInfo = JSON.parse(localStorage.getItem('system-user') || '{}')
+    if (!userInfo.id) {
+      ElMessage.error('请先登录')
+      router.push('/login')
+      return
+    }
+
+    // 构建订单数据 - 后端会重新计算价格，所以不需要传价格字段
+    const orderData = {
+      userId: userInfo.id,
+      carId: car.value.id,
+      pickupTime: rentForm.pickupDate,
+      returnTime: rentForm.returnDate,
+      remark: '' // 可选的备注
+    }
+
+    const res = await createOrder(orderData)
+
+    if (res.code === '200') {
+      ElMessage.success('订单创建成功，请尽快支付')
+      showRentDialog.value = false
+      // 清空表单
+      rentForm.pickupDate = ''
+      rentForm.returnDate = ''
+      // 跳转到订单列表
+      router.push('/front/orders')
+    } else {
+      ElMessage.error(res.msg || '创建订单失败')
+    }
+  } catch (error) {
+    console.error('创建订单失败:', error)
+    ElMessage.error(error.message || '创建订单失败，请稍后重试')
+  } finally {
     rentLoading.value = false
-    showRentDialog.value = false
-    ElMessage.success('租车成功！请到"我的订单"查看')
-    router.push('/front/orders')
-  }, 1500)
+  }
+}
+// 添加用户登录检查
+const checkLogin = () => {
+  if (!user.value?.id) {
+    ElMessage.warning('请先登录')
+    router.push('/login')
+    return false
+  }
+  return true
 }
 
 // 跳转到车辆详情
@@ -1026,65 +1321,184 @@ const goToCarDetail = (car) => {
   color: #c8a165;
 }
 
-/* 响应式 */
-@media (max-width: 900px) {
-  .main-content {
-    grid-template-columns: 1fr;
-  }
-
-  .params-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
-  .config-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
-  .recommend-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
+/* 费用明细样式 */
+.price-detail {
+  margin-top: 20px;
+  padding: 16px;
+  background: #f8fafc;
+  border-radius: 12px;
+  border: 1px solid #edf2f7;
 }
 
-@media (max-width: 600px) {
-  .detail-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 12px;
-  }
+.price-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 0;
+  font-size: 14px;
+  color: #4a5568;
+}
 
-  .car-title {
-    font-size: 24px;
-  }
+.price-row.total {
+  border-top: 1px solid #edf2f7;
+  margin-top: 8px;
+  padding-top: 16px;
+  font-weight: 700;
+  color: #c8a165;
+  font-size: 16px;
+}
 
-  .price-box {
-    flex-direction: column;
-    gap: 12px;
-    text-align: center;
-  }
+.price-row .deposit {
+  color: #409eff;
+  font-weight: 500;
+}
 
-  .stock-info {
-    text-align: center;
-  }
+.price-note {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 8px;
+  padding: 8px 12px;
+  background: #f1f5f9;
+  border-radius: 8px;
+  font-size: 12px;
+  color: #64748b;
+}
 
-  .action-buttons {
-    flex-direction: column;
-  }
+.price-note .el-icon {
+  color: #c8a165;
+  font-size: 14px;
+}
+.adjustments-list {
+  margin: 8px 0;
+  padding-left: 12px;
+  border-left: 2px solid #e2e8f0;
+}
 
-  .params-grid {
-    grid-template-columns: 1fr;
-  }
+.adjustment-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0;
+  font-size: 13px;
+}
 
-  .config-grid {
-    grid-template-columns: 1fr;
-  }
+.adjustment-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
 
-  .rating-overview {
-    flex-direction: column;
-    gap: 16px;
-  }
+.info-icon {
+  font-size: 14px;
+  color: #94a3b8;
+  cursor: help;
+}
 
-  .review-header {
-    flex-wrap: wrap;
-  }
+.info-icon:hover {
+  color: #409eff;
+}
+
+.adjustment-badge {
+  padding: 2px 6px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.premium-badge {
+  background: #fee2e2;
+  color: #ef4444;
+}
+
+.discount-badge {
+  background: #dcfce7;
+  color: #10b981;
+}
+
+.price-up {
+  color: #ef4444;
+  font-weight: 500;
+}
+
+.price-down {
+  color: #10b981;
+  font-weight: 500;
+}
+
+.adjusted-rent {
+  padding-top: 6px;
+  margin-top: 6px;
+  border-top: 1px dashed #e2e8f0;
+  font-weight: 600;
+}
+
+.highlight-price {
+  color: #409eff;
+  font-size: 16px;
+}
+
+.total-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.price-tip-icon {
+  font-size: 14px;
+  color: #94a3b8;
+  cursor: help;
+}
+
+.price-tip-icon:hover {
+  color: #409eff;
+}
+
+.price-tip-message {
+  text-align: center;
+  padding: 20px;
+  color: #94a3b8;
+  font-size: 14px;
+}
+
+.price-policy {
+  padding: 8px;
+}
+
+.price-policy h4 {
+  margin: 0 0 8px 0;
+  font-size: 14px;
+  color: #1e2a3a;
+}
+
+.price-policy p {
+  margin: 4px 0;
+  font-size: 12px;
+  color: #64748b;
+  line-height: 1.6;
+}
+
+.price-policy ul {
+  margin: 8px 0;
+  padding-left: 16px;
+  color: #64748b;
+  font-size: 12px;
+}
+
+.price-policy li {
+  margin: 4px 0;
+}
+.final-rent {
+  font-weight: 500;
+  color: #1e2a3a;
+  border-bottom: 1px dashed #e2e8f0;
+  padding-bottom: 8px;
+  margin-bottom: 8px;
+}
+
+.normal-price {
+  color: #1e2a3a;
+  font-size: 16px;
+  font-weight: 600;
 }
 </style>

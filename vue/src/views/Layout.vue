@@ -75,31 +75,10 @@
           </el-sub-menu>
 
           <!-- 订单管理  -->
-          <el-sub-menu index="order" class="menu-submenu">
-            <template #title>
-              <el-icon><List /></el-icon>
-              <span>订单管理</span>
-            </template>
-            <el-menu-item index="/manager/order/list" class="submenu-item">
-              <el-icon><Document /></el-icon>
-              <span>全部订单</span>
-            </el-menu-item>
-            <el-menu-item index="/manager/order/pending" class="submenu-item">
-              <el-icon><Clock /></el-icon>
-              <!-- 合并：待付款，待审核订单 -->
-              <span>待处理</span>
-            </el-menu-item>
-            <el-menu-item index="/manager/order/active" class="submenu-item">
-              <el-icon><Van /></el-icon>
-              <!-- 合并：已取车，租赁中 -->
-              <span>进行中</span>
-            </el-menu-item>
-            <el-menu-item index="/manager/order/completed" class="submenu-item">
-              <el-icon><CircleCheck /></el-icon>
-              <!-- 合并：已完成，已取消 -->
-              <span>已完成</span>
-            </el-menu-item>
-          </el-sub-menu>
+          <el-menu-item index="/manager/order" class="menu-item">
+            <el-icon><List /></el-icon>
+            <span>订单管理</span>
+          </el-menu-item>
 
           <!-- 内容管理 -->
           <el-sub-menu index="content" class="menu-submenu">
@@ -202,7 +181,7 @@ import { reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import router from '@/router'
 import { ElMessage } from 'element-plus'
-import { HomeFilled, User, Lock, SwitchButton, List, Document, Clock, Van, CircleCheck } from '@element-plus/icons-vue'
+import { HomeFilled, User, Lock, SwitchButton } from '@element-plus/icons-vue'
 
 const route = useRoute()
 

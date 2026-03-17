@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.mapper.SeasonFactorMapper">
+
+    <resultMap id="BaseResultMap" type="com.example.entity.order.SeasonFactor">
+        <id property="id" column="id"/>
+        <result property="name" column="name"/>
+        <result property="startDate" column="start_date"/>
+        <result property="endDate" column="end_date"/>
+        <result property="factor" column="factor"/>
+        <result property="year" column="year"/>
+        <result property="status" column="status"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateTime" column="update_time"/>
+    </resultMap>
+
+    <select id="selectOverlapping" resultMap="BaseResultMap">
+        select * from season_factor
+        where status = 1
+          and (
+            (start_date between #{start} and #{end})
+                or (end_date between #{start} and #{end})
+                or (start_date &lt;= #{start} and end_date >= #{end})
+                or (year is null and (
+                (DATE_FORMAT(start_date, '%m-%d') between DATE_FORMAT(#{start}, '%m-%d') and DATE_FORMAT(#{end}, '%m-%d'))
+                or (DATE_FORMAT(end_date, '%m-%d') between DATE_FORMAT(#{start}, '%m-%d') and DATE_FORMAT(#{end}, '%m-%d'))
+                ))
+            )
+        order by factor desc
+    </select>
+
+    <select id="selectAll" resultMap="BaseResultMap">
+        select * from season_factor
+        <where>
+            <if test="name != null and name != ''">
+                name like concat('%', #{name}, '%')
+            </if>
+        </where>
+        order by start_date desc
+    </select>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        select * from season_factor where id = #{id}
+    </select>
+
+    <insert id="insert" parameterType="com.example.entity.order.SeasonFactor" useGeneratedKeys="true" keyProperty="id">
+        insert into season_factor (name, start_date, end_date, factor, year, status)
+        values (#{name}, #{startDate}, #{endDate}, #{factor}, #{year}, #{status})
+    </insert>
+
+    <update id="update" parameterType="com.example.entity.order.SeasonFactor">
+        update season_factor
+        set name = #{name},
+            start_date = #{startDate},
+            end_date = #{endDate},
+            factor = #{factor},
+            year = #{year},
+            status = #{status}
+        where id = #{id}
+    </update>
+
+    <delete id="deleteById">
+        delete from season_factor where id = #{id}
+    </delete>
+
+</mapper>

@@ -23,7 +23,7 @@ const router = createRouter({
         { path: 'car/brand', component: () => import('@/views/manager/car/CarBrand.vue') },
 
         // 订单管理
-        { path: 'order', component: () => import('@/views/manager/order/Order.vue') },
+        { path: 'order', component: () => import('@/views/manager/order/OrderList.vue') },
 
         // 内容管理
         { path: 'forum', component: () => import('@/views/manager/content/Forum.vue') },

@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.mapper.SystemConfigMapper">
+
+    <resultMap id="BaseResultMap" type="com.example.entity.order.SystemConfig">
+        <id property="id" column="id"/>
+        <result property="configKey" column="config_key"/>
+        <result property="configValue" column="config_value"/>
+        <result property="configType" column="config_type"/>
+        <result property="description" column="description"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateTime" column="update_time"/>
+    </resultMap>
+
+    <select id="getValueByKey" resultType="string">
+        select config_value from system_config
+        where config_key = #{key}
+    </select>
+
+    <select id="selectByKey" resultMap="BaseResultMap">
+        select * from system_config
+        where config_key = #{key}
+    </select>
+
+    <select id="selectAll" resultMap="BaseResultMap">
+        select * from system_config
+        <where>
+            <if test="configType != null and configType != ''">
+                config_type = #{configType}
+            </if>
+        </where>
+        order by config_key
+    </select>
+
+    <insert id="insert" parameterType="com.example.entity.order.SystemConfig" useGeneratedKeys="true" keyProperty="id">
+        insert into system_config (config_key, config_value, config_type, description)
+        values (#{configKey}, #{configValue}, #{configType}, #{description})
+    </insert>
+
+    <update id="update" parameterType="com.example.entity.order.SystemConfig">
+        update system_config
+        set config_value = #{configValue},
+            config_type = #{configType},
+            description = #{description}
+        where config_key = #{configKey}
+    </update>
+
+    <delete id="deleteById">
+        delete from system_config where id = #{id}
+    </delete>
+
+</mapper>
