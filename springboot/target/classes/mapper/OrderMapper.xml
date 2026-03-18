@@ -114,13 +114,15 @@
             car_id, car_name, car_image,car_seats, car_gear,
             car_energy, daily_price,pickup_time, return_time,
             days,pickup_location, return_location,total_price,
-            deposit, payment_method, status,remark, create_time
+            dynamic_rent, price_adjustments,deposit, payment_method,
+            status,remark, create_time
         ) values (
                      #{orderNo}, #{userId}, #{userName}, #{userPhone},
                      #{carId}, #{carName}, #{carImage},#{carSeats}, #{carGear},
                      #{carEnergy}, #{dailyPrice},#{pickupTime}, #{returnTime},
                      #{days},#{pickupLocation}, #{returnLocation},#{totalPrice},
-                     #{deposit}, #{paymentMethod}, #{status},#{remark}, now()
+                     #{dynamicRent},#{priceAdjustments},#{deposit}, #{paymentMethod},
+                     #{status},#{remark}, now()
                  )
     </insert>
 

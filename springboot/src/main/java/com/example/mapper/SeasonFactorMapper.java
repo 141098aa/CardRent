@@ -19,4 +19,7 @@ public interface SeasonFactorMapper {
     void update(SeasonFactor factor);
 
     void deleteById(@Param("id") Integer id);
+    // 支持年份参数的方法
+    List<SeasonFactor> selectByDate(@Param("date") LocalDate date,
+                                    @Param("year") Integer year);
 }

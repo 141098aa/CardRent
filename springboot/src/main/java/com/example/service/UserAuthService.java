@@ -1,11 +1,13 @@
 // UserAuthService.java
 package com.example.service;
 
+import com.example.entity.User;
 import com.example.entity.UserRealNameAuth;
 import com.example.entity.UserDriverLicenseAuth;
 import com.example.entity.dto.AuthAuditDTO;
 import com.example.exception.CustomException;
 import com.example.mapper.UserAuthMapper;
+import com.example.mapper.UserMapper;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
 import jakarta.annotation.Resource;
@@ -20,6 +22,9 @@ public class UserAuthService {
 
     @Resource
     private UserAuthMapper userAuthMapper;
+
+    @Resource
+    private UserMapper userMapper;
 
     // 认证状态常量
     public static final Integer STATUS_PENDING = 0;  // 待审核
@@ -165,19 +170,22 @@ public class UserAuthService {
      * 用户提交实名认证（新增或更新）
      */
     @Transactional
-    public void submitRealName(UserRealNameAuth auth) {
+    public void submitRealName(UserRealNameAuth auth, String phone) {
         // 检查是否已存在
         UserRealNameAuth existing = userAuthMapper.selectRealNameByUserId(auth.getUserId());
 
         if (existing != null) {
             // 更新现有记录
             auth.setId(existing.getId());
-            userAuthMapper.updateRealNameAuth(auth);
+            userAuthMapper.updateRealNameAuth(auth, phone);
         } else {
             // 新增记录
-            userAuthMapper.insertRealNameAuth(auth);
+            userAuthMapper.insertRealNameAuth(auth, phone);
         }
-
+        // 2. 如果有手机号更新，更新用户表
+        if (phone != null) {
+            userAuthMapper.updateUserPhone(auth.getUserId(), phone);
+        }
         // 可选：更新 user 表中的状态字段
         userAuthMapper.updateUserAuthStatus(auth.getUserId(), "real_name", auth.getStatus());
     }
@@ -186,19 +194,22 @@ public class UserAuthService {
      * 用户提交驾驶证认证（新增或更新）
      */
     @Transactional
-    public void submitDriverLicense(UserDriverLicenseAuth auth) {
+    public void submitDriverLicense(UserDriverLicenseAuth auth, String phone) {
         // 检查是否已存在
         UserDriverLicenseAuth existing = userAuthMapper.selectDriverLicenseByUserId(auth.getUserId());
 
         if (existing != null) {
             // 更新现有记录
             auth.setId(existing.getId());
-            userAuthMapper.updateDriverLicenseAuth(auth);
+            userAuthMapper.updateDriverLicenseAuth(auth, phone);
         } else {
             // 新增记录
-            userAuthMapper.insertDriverLicenseAuth(auth);
+            userAuthMapper.insertDriverLicenseAuth(auth, phone);
         }
-
+        // 2. 如果有手机号更新，更新用户表
+        if (phone != null) {
+            userAuthMapper.updateUserPhone(auth.getUserId(), phone);
+        }
         // 可选：更新 user 表中的状态字段
         userAuthMapper.updateUserAuthStatus(auth.getUserId(), "driver_license", auth.getStatus());
     }

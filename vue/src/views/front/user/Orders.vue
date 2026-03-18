@@ -264,6 +264,7 @@
           </div>
         </div>
 
+        <!-- 订单详情对话框  -->
         <div class="detail-section">
           <h4>费用明细</h4>
           <div class="price-detail">
@@ -273,32 +274,29 @@
               <span>¥{{ currentOrder.dailyPrice * currentOrder.days }}</span>
             </div>
 
-            <!-- 动态调价明细 - 只在有调价时显示 -->
+            <!-- 动态调价明细 - 从 priceAdjustments 解析 -->
             <div v-if="parsedAdjustments.length > 0" class="adjustments-list">
               <div v-for="(adj, index) in parsedAdjustments" :key="index" class="adjustment-item">
                 <div class="adjustment-info">
                   <span>{{ adj.name }}</span>
-                  <el-tooltip :content="adj.description" placement="top">
+                  <el-tooltip :content="getAdjustmentDescription(adj)" placement="top">
                     <el-icon class="info-icon"><InfoFilled /></el-icon>
                   </el-tooltip>
+                  <span class="adjustment-badge" :class="getAdjustmentBadgeClass(adj)">
+                    {{ adj.description }}
+                  </span>
                 </div>
                 <span :class="adj.amount > 0 ? 'price-up' : 'price-down'">
-                  {{ adj.amount > 0 ? '+' : '' }}{{ adj.amount }} ({{ adj.description }})
+                  {{ adj.amount > 0 ? '+' : '' }}{{ adj.amount }}
                 </span>
               </div>
             </div>
 
-            <!-- 动态调整后租金 - 只在有调价时显示 -->
+            <!-- 调整后租金 - 只在有调价时显示 -->
             <div v-if="parsedAdjustments.length > 0" class="price-row adjusted-rent">
               <span>调整后租金</span>
-              <span>¥{{ currentOrder.dynamicRent || currentOrder.dailyPrice * currentOrder.days }}</span>
+              <span class="highlight-price">¥{{ adjustedRent }}</span>
             </div>
-
-            <!-- 无调价时直接显示租金 -->
-            <!-- <div v-else class="price-row final-rent">
-              <span>租金</span>
-              <span class="normal-price">¥{{ currentOrder.dailyPrice * currentOrder.days }}</span>
-            </div> -->
 
             <!-- 保险 -->
             <div class="price-row">
@@ -315,7 +313,7 @@
             <!-- 总计 -->
             <div class="price-row total">
               <span>总计</span>
-              <span>¥{{ currentOrder.totalPrice }}</span>
+              <span class="total-price">¥{{ currentOrder.totalPrice }}</span>
             </div>
 
             <!-- 价格说明悬浮提示 -->
@@ -331,14 +329,21 @@
                   <h4>动态定价说明</h4>
                   <p>我们的价格会随市场情况动态调整，确保您在合适的时间获得最优价格：</p>
                   <ul>
-                    <li>周末溢价：周五至周日用车，价格上浮20%</li>
-                    <li>节假日溢价：国家法定节假日，价格上浮50%</li>
-                    <li>长租优惠：租期7天以上，享受9折优惠</li>
+                    <li>周末溢价：周六至周日用车，价格上浮20%</li>
+                    <li>节假日溢价：国家法定节假日，价格上浮30~50%</li>
+                    <li>长租优惠：租期7天以上，享受折扣优惠</li>
+                    <li>超时费用：不足30分钟免费；30分钟-4小时按小时计费；超过4小时按1天计费</li>
                   </ul>
                   <p>所有价格调整都会在订单确认页明细展示，请您放心预订。</p>
                 </div>
               </el-popover>
             </div>
+          </div>
+        </div>
+        <div v-if="currentOrder.remark" class="detail-section">
+          <h4>备注信息</h4>
+          <div class="remark-content">
+            {{ currentOrder.remark }}
           </div>
         </div>
       </div>
@@ -422,15 +427,49 @@ const formatDateTime = (datetime) => {
 }
 // 解析调价明细
 const parsedAdjustments = computed(() => {
-  if (!currentOrder.value?.priceAdjustments) return []
+  if (!currentOrder.value?.priceAdjustments) {
+    console.log('priceAdjustments 为空:', currentOrder.value?.priceAdjustments)
+    return []
+  }
   try {
-    return JSON.parse(currentOrder.value.priceAdjustments)
+    console.log('原始 priceAdjustments:', currentOrder.value.priceAdjustments)
+    const parsed = JSON.parse(currentOrder.value.priceAdjustments)
+    console.log('解析后的调价明细:', parsed)
+    return parsed
   } catch (e) {
-    console.error('解析调价明细失败', e)
+    console.error('解析调价明细失败', e, '原始数据:', currentOrder.value.priceAdjustments)
     return []
   }
 })
 
+// 获取调价项的徽章样式
+const getAdjustmentBadgeClass = (adj) => {
+  if (adj.type === 'discount') return 'discount-badge'
+  if (adj.type === 'overtime') return 'overtime-badge'
+  return 'premium-badge'
+}
+
+// 获取调价项的描述
+const getAdjustmentDescription = (adj) => {
+  switch (adj.type) {
+    case 'weekend':
+      return '周末用车价格上浮20%'
+    case 'season':
+      return '节假日用车价格上浮30%~50%'
+    case 'discount':
+      return adj.description || '长租优惠已自动应用'
+    case 'overtime':
+      if (adj.hours) {
+        return `超时费用：超时 ${adj.hours} 小时，按小时计费`
+      } else if (adj.description && adj.description.includes('超过4小时')) {
+        return '超时费用：超过4小时按1天计费，包含当天保险'
+      } else {
+        return '超时费用：超时按小时或天数计费'
+      }
+    default:
+      return adj.description || ''
+  }
+}
 // 计算调整后租金
 const adjustedRent = computed(() => {
   if (!currentOrder.value) return 0
@@ -1162,5 +1201,95 @@ onMounted(() => {
   color: #1e2a3a;
   font-size: 16px;
   font-weight: 600;
+}
+
+.adjustments-list {
+  margin: 8px 0;
+  padding-left: 12px;
+  border-left: 2px solid #e2e8f0;
+}
+
+.adjustment-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0;
+  font-size: 13px;
+}
+
+.adjustment-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.info-icon {
+  font-size: 14px;
+  color: #94a3b8;
+  cursor: help;
+}
+
+.info-icon:hover {
+  color: #409eff;
+}
+
+.adjustment-badge {
+  padding: 2px 6px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.premium-badge {
+  background: #fee2e2;
+  color: #ef4444;
+}
+
+.discount-badge {
+  background: #dcfce7;
+  color: #10b981;
+}
+
+.overtime-badge {
+  background: #fff3e0;
+  color: #ed6c02;
+}
+
+.price-up {
+  color: #ef4444;
+  font-weight: 500;
+}
+
+.price-down {
+  color: #10b981;
+  font-weight: 500;
+}
+
+.adjusted-rent {
+  padding-top: 6px;
+  margin-top: 6px;
+  border-top: 1px dashed #e2e8f0;
+  font-weight: 600;
+}
+
+.highlight-price {
+  color: #409eff;
+  font-size: 16px;
+}
+
+.total-price {
+  color: #c8a165;
+  font-size: 18px;
+  font-weight: 700;
+}
+.remark-content {
+  padding: 12px 16px;
+  background: #f8fafc;
+  border-radius: 8px;
+  border-left: 3px solid #c8a165;
+  color: #4a5568;
+  font-size: 14px;
+  line-height: 1.6;
 }
 </style>

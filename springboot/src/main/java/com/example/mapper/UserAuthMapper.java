@@ -43,9 +43,27 @@ public interface UserAuthMapper {
 
     // ========== 用户端方法 ==========
 
-    void insertRealNameAuth(UserRealNameAuth auth);
-    void updateRealNameAuth(UserRealNameAuth auth);
+    /**
+     * 提交实名认证（包含手机号更新）
+     */
+    void insertRealNameAuth(@Param("auth") UserRealNameAuth auth,
+                            @Param("phone") String phone);
 
-    void insertDriverLicenseAuth(UserDriverLicenseAuth auth);
-    void updateDriverLicenseAuth(UserDriverLicenseAuth auth);
+    void updateRealNameAuth(@Param("auth") UserRealNameAuth auth,
+                            @Param("phone") String phone);
+
+    /**
+     * 提交驾驶证认证（包含手机号更新）
+     */
+    void insertDriverLicenseAuth(@Param("auth") UserDriverLicenseAuth auth,
+                                 @Param("phone") String phone);
+
+    void updateDriverLicenseAuth(@Param("auth") UserDriverLicenseAuth auth,
+                                 @Param("phone") String phone);
+    /**
+     * 更新用户手机号
+     */
+    void updateUserPhone(@Param("userId") Integer userId,
+                         @Param("phone") String phone);
+
 }

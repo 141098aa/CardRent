@@ -7,10 +7,12 @@ import com.example.service.OrderService;
 import com.github.pagehelper.PageInfo;
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
+import java.time.LocalDateTime;
 import java.util.Map;
 
 @RestController
@@ -110,9 +112,10 @@ public class FrontOrderController {
      */
     @GetMapping("/previewPrice")
     public Result previewPrice(@RequestParam Integer carId,
-                               @RequestParam String pickupTime,
-                               @RequestParam String returnTime) {
-        Map<String, Object> priceInfo = orderService.calculatePrice(carId, pickupTime, returnTime);
+                               @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime pickupTime,
+                               @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime returnTime) {
+
+        Map<String, Object> priceInfo = orderService.calculatePrice(carId, pickupTime.toString(), returnTime.toString());
         return Result.success(priceInfo);
     }
 

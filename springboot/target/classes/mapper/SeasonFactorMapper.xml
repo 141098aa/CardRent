@@ -65,4 +65,18 @@
         delete from season_factor where id = #{id}
     </delete>
 
+    <select id="selectByDate" resultType="com.example.entity.order.SeasonFactor">
+        select * from season_factor
+        where status = 1
+          and start_date &lt;= #{date}
+          and end_date >= #{date}
+          and (year = #{year} or year is null)
+        order by
+            case
+                when year = #{year} then 1  -- 当年精确匹配优先
+            else 2                        -- 固定节假日次之
+        end,
+        factor desc
+    </select>
+
 </mapper>

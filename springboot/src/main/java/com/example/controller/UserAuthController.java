@@ -86,9 +86,19 @@ public class UserAuthController {
      * 用户提交实名认证
      */
     @PostMapping("/submitRealName")
-    public Result submitRealName(@RequestBody UserRealNameAuth auth) {
+    public Result submitRealName(@RequestBody Map<String, Object> params) {  // 改为 Map 接收
+        UserRealNameAuth auth = new UserRealNameAuth();
+        // 从Map中获取userId参数，转换为Integer类型
+        auth.setUserId((Integer) params.get("userId"));
+        auth.setRealName((String) params.get("realName"));
+        auth.setIdNumber((String) params.get("idNumber"));
+        auth.setIdFrontImage((String) params.get("idFrontImage"));
+        auth.setIdBackImage((String) params.get("idBackImage"));
         auth.setStatus(0); // 默认待审核
-        userAuthService.submitRealName(auth);
+
+        String phone = (String) params.get("phone");  // 获取手机号
+
+        userAuthService.submitRealName(auth, phone);  // 传入 phone 参数
         return Result.success();
     }
 
@@ -96,9 +106,28 @@ public class UserAuthController {
      * 用户提交驾驶证认证
      */
     @PostMapping("/submitDriverLicense")
-    public Result submitDriverLicense(@RequestBody UserDriverLicenseAuth auth) {
+    public Result submitDriverLicense(@RequestBody Map<String, Object> params) {  // 改为 Map 接收
+        UserDriverLicenseAuth auth = new UserDriverLicenseAuth();
+        auth.setUserId((Integer) params.get("userId"));
+        auth.setDriverName((String) params.get("driverName"));
+        auth.setLicenseNumber((String) params.get("licenseNumber"));
+        auth.setVehicleType((String) params.get("vehicleType"));
+
+        // 处理日期参数
+        if (params.get("validStart") != null) {
+            auth.setValidStart(java.time.LocalDate.parse((String) params.get("validStart")));
+        }
+        if (params.get("validEnd") != null) {
+            auth.setValidEnd(java.time.LocalDate.parse((String) params.get("validEnd")));
+        }
+
+        auth.setLicenseFrontImage((String) params.get("licenseFrontImage"));
+        auth.setLicenseBackImage((String) params.get("licenseBackImage"));
         auth.setStatus(0); // 默认待审核
-        userAuthService.submitDriverLicense(auth);
+
+        String phone = (String) params.get("phone");  // 获取手机号
+
+        userAuthService.submitDriverLicense(auth, phone);  // 传入 phone 参数
         return Result.success();
     }
 

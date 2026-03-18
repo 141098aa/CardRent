@@ -37,6 +37,7 @@ public class Order {
     private LocalDateTime createTime;
     private LocalDateTime updateTime;
     private String priceAdjustments;       // JSON格式存储所有调价明细
+    private BigDecimal dynamicRent;  // 调整后租金
 
     // 非持久化字段，用于前端展示解析后的调价明细
     private List<PriceAdjustment> adjustmentList;  // 不映射到数据库

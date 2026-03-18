@@ -150,59 +150,66 @@
 
 
     <!-- 新增实名认证 -->
-    <insert id="insertRealNameAuth" parameterType="com.example.entity.UserRealNameAuth">
+    <insert id="insertRealNameAuth">
         insert into user_real_name_auth(
             user_id, real_name, id_number,
             id_front_image, id_back_image, status,
             audit_remark, audit_time, create_time
         ) values (
-                     #{userId}, #{realName}, #{idNumber},
-                     #{idFrontImage}, #{idBackImage}, #{status},
-                     #{auditRemark}, #{auditTime}, now()
+                     #{auth.userId}, #{auth.realName}, #{auth.idNumber},
+                     #{auth.idFrontImage}, #{auth.idBackImage}, #{auth.status},
+                     #{auth.auditRemark}, #{auth.auditTime}, now()
                  )
     </insert>
 
     <!-- 更新实名认证 -->
-    <update id="updateRealNameAuth" parameterType="com.example.entity.UserRealNameAuth">
+    <update id="updateRealNameAuth">
         update user_real_name_auth
-        set real_name = #{realName},
-            id_number = #{idNumber},
-            id_front_image = #{idFrontImage},
-            id_back_image = #{idBackImage},
-            status = #{status},
-            audit_remark = #{auditRemark},
-            audit_time = #{auditTime},
+        set real_name = #{auth.realName},
+            id_number = #{auth.idNumber},
+            id_front_image = #{auth.idFrontImage},
+            id_back_image = #{auth.idBackImage},
+            status = #{auth.status},
+            audit_remark = #{auth.auditRemark},
+            audit_time = #{auth.auditTime},
             update_time = now()
-        where id = #{id}
+        where id = #{auth.id}
     </update>
 
     <!-- 新增驾驶证认证 -->
-    <insert id="insertDriverLicenseAuth" parameterType="com.example.entity.UserDriverLicenseAuth">
+    <insert id="insertDriverLicenseAuth">
         insert into user_driver_license_auth(
             user_id, driver_name, license_number, vehicle_type,
             valid_start, valid_end, license_front_image, license_back_image,
             status, audit_remark, audit_time, create_time
         ) values (
-                     #{userId}, #{driverName}, #{licenseNumber}, #{vehicleType},
-                     #{validStart}, #{validEnd}, #{licenseFrontImage}, #{licenseBackImage},
-                     #{status}, #{auditRemark}, #{auditTime}, now()
+                     #{auth.userId}, #{auth.driverName}, #{auth.licenseNumber}, #{auth.vehicleType},
+                     #{auth.validStart}, #{auth.validEnd}, #{auth.licenseFrontImage}, #{auth.licenseBackImage},
+                     #{auth.status}, #{auth.auditRemark}, #{auth.auditTime}, now()
                  )
     </insert>
 
     <!-- 更新驾驶证认证 -->
-    <update id="updateDriverLicenseAuth" parameterType="com.example.entity.UserDriverLicenseAuth">
+    <update id="updateDriverLicenseAuth">
         update user_driver_license_auth
-        set driver_name = #{driverName},
-            license_number = #{licenseNumber},
-            vehicle_type = #{vehicleType},
-            valid_start = #{validStart},
-            valid_end = #{validEnd},
-            license_front_image = #{licenseFrontImage},
-            license_back_image = #{licenseBackImage},
-            status = #{status},
-            audit_remark = #{auditRemark},
-            audit_time = #{auditTime},
+        set driver_name = #{auth.driverName},
+            license_number = #{auth.licenseNumber},
+            vehicle_type = #{auth.vehicleType},
+            valid_start = #{auth.validStart},
+            valid_end = #{auth.validEnd},
+            license_front_image = #{auth.licenseFrontImage},
+            license_back_image = #{auth.licenseBackImage},
+            status = #{auth.status},
+            audit_remark = #{auth.auditRemark},
+            audit_time = #{auth.auditTime},
             update_time = now()
-        where id = #{id}
+        where id = #{auth.id}
+    </update>
+    <!-- 更新用户手机号 -->
+    <update id="updateUserPhone">
+        update user
+        set phone = #{phone},
+            update_time = now()
+        where id = #{userId}
     </update>
 </mapper>

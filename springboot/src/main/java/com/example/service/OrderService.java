@@ -18,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 import cn.hutool.json.JSONUtil;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -175,7 +176,7 @@ public class OrderService {
 
               /* 用户端方法*/
     /**
-     * 计算动态价格
+     * 计算动态价格 - 支持小时级精确计算
      */
     public Map<String, Object> calculatePrice(Integer carId, String pickupTime, String returnTime) {
         Map<String, Object> result = new HashMap<>();
@@ -186,144 +187,428 @@ public class OrderService {
             throw new CustomException("车辆不存在");
         }
 
-        // 2. 计算租车天数
+        // 2. 解析时间
         LocalDateTime pickup = LocalDateTime.parse(pickupTime);
         LocalDateTime return_ = LocalDateTime.parse(returnTime);
-        long days = ChronoUnit.DAYS.between(pickup.toLocalDate(), return_.toLocalDate());
-        if (days < 1) {
-            throw new CustomException("租车天数不能少于1天");
+        if (pickup.isAfter(return_)) {
+            throw new CustomException("还车时间不能早于取车时间");
         }
 
-        // 3. 获取各项系数
-        BigDecimal seasonFactor = getSeasonFactor(pickup.toLocalDate(), return_.toLocalDate());
-        BigDecimal weekendFactor = getWeekendFactor(pickup.toLocalDate(), return_.toLocalDate());
-        BigDecimal rentalDiscount = getRentalDiscount((int) days);
+// 3. 计算总分钟
+        long totalMinutes = ChronoUnit.MINUTES.between(pickup, return_);
 
-        // 4. 计算基础租金
-        BigDecimal baseRent = car.getPrice().multiply(BigDecimal.valueOf(days));
-        BigDecimal currentRent = baseRent;
+// 4. 计算完整天数和剩余分钟
+        long totalDays = totalMinutes / (24 * 60);
+        long remainingMinutesTotal = totalMinutes % (24 * 60);
 
-        // 5. 创建调价明细列表
+        int fullDays = (int) totalDays;
+        int remainingHours = (int) (remainingMinutesTotal / 60);
+        int remainingMinutes = (int) (remainingMinutesTotal % 60);
+
+        //  判断超时是否按天计算
+        boolean isOvertimeFullDay = false;
+
+// 先处理免费情况（小于等于30分钟）
+        if (remainingHours == 0 && remainingMinutes <= 30) {
+            // 免费，不收费
+            remainingHours = 0;
+            remainingMinutes = 0;
+        }
+// 处理按小时计费的情况（30分钟 < 剩余时间 ≤ 4小时）
+        else if ((remainingHours < 4) || (remainingHours == 4 && remainingMinutes == 0)) {
+            // 按小时计费，分钟超过30按1小时算
+            if (remainingMinutes > 30) {
+                remainingHours++;
+            }
+            // 如果加了1小时后超过4小时，需要重新判断
+            if (remainingHours > 4) {
+                isOvertimeFullDay = true;
+                fullDays++;
+                remainingHours = 0;
+                remainingMinutes = 0;
+            }
+        }
+            // 处理按天计费的情况（剩余时间 > 4小时）
+        else {
+            // 超过4小时（哪怕多1分钟），按1天计算
+            isOvertimeFullDay = true;
+            fullDays++;
+            remainingHours = 0;
+            remainingMinutes = 0;
+        }
+
+        // 5. 按天拆分计算
+        List<LocalDate> dateList = new ArrayList<>();
+        LocalDate current = pickup.toLocalDate();
+        LocalDate endDate = return_.toLocalDate();
+
+        // 如果不足1天，按小时计算，不需要拆天
+        if (fullDays == 0 && remainingHours == 0) {
+            // 小于30分钟，免费
+            result.put("carId", carId);
+            result.put("days", 0);
+            result.put("hours", 0);
+            result.put("dailyPrice", car.getPrice());
+            result.put("baseRent", BigDecimal.ZERO.setScale(2));
+            result.put("dynamicRent", BigDecimal.ZERO.setScale(2));
+            result.put("insurancePrice", car.getInsurancePrice());
+            result.put("insuranceTotal", BigDecimal.ZERO.setScale(2));
+            result.put("deposit", car.getDeposit().setScale(2));
+            result.put("totalPrice", car.getDeposit().setScale(2));
+            result.put("priceAdjustments", "[]");
+            result.put("dailyFactors", "[]");
+            result.put("overtimeInfo", "不足30分钟，免费");
+            return result;
+        }
+
+        // 计算完整天数的日期列表
+        for (int i = 0; i < fullDays; i++) {
+            dateList.add(current.plusDays(i));
+        }
+
+        // 6. 计算各项费用
+        BigDecimal baseRent = BigDecimal.ZERO;  // 基础租金（原价）
+        BigDecimal weekendTotal = BigDecimal.ZERO;  // 周末溢价总额
+        BigDecimal holidayTotal = BigDecimal.ZERO;  // 节假日溢价总额
+        BigDecimal discountAmount = BigDecimal.ZERO;  // 长租折扣总额
+
+        List<Map<String, Object>> dailyFactors = new ArrayList<>();
         List<Map<String, Object>> adjustments = new ArrayList<>();
-        BigDecimal totalFactor = BigDecimal.ONE;
 
-        // 季节溢价
-        if (seasonFactor.compareTo(BigDecimal.ONE) > 0) {
-            BigDecimal factor = seasonFactor;
-            BigDecimal amount = baseRent.multiply(factor.subtract(BigDecimal.ONE));
-            Map<String, Object> adj = new HashMap<>();
-            adj.put("type", "season");
-            adj.put("name", "节假日溢价");
-            adj.put("factor", factor);
-            adj.put("description", "节假日+" + factor.multiply(BigDecimal.valueOf(100)).subtract(BigDecimal.valueOf(100)).intValue() + "%");
-            adj.put("amount", amount);
-            adjustments.add(adj);
-            totalFactor = totalFactor.multiply(factor);
+        // 记录每天的系数和溢价
+        for (LocalDate date : dateList) {
+            // 获取当天的系数
+            BigDecimal dayFactor = getDayFactor(date);
+
+            // 基础租金累加（原价）
+            baseRent = baseRent.add(car.getPrice());
+
+            // 计算当天的溢价金额
+            BigDecimal dayPremium = car.getPrice().multiply(dayFactor.subtract(BigDecimal.ONE));
+
+            // 判断溢价类型并累加
+            boolean isWeekend = date.getDayOfWeek() == DayOfWeek.SATURDAY ||
+                    date.getDayOfWeek() == DayOfWeek.SUNDAY;
+            boolean isHoliday = getHolidayFactor(date).compareTo(BigDecimal.ONE) > 0;
+
+            if (isHoliday) {
+                holidayTotal = holidayTotal.add(dayPremium);
+            } else if (isWeekend && dayFactor.compareTo(BigDecimal.valueOf(1.2)) == 0) {
+                weekendTotal = weekendTotal.add(dayPremium);
+            }
+
+            // 记录每天的计算明细
+            Map<String, Object> dayDetail = new HashMap<>();
+            dayDetail.put("date", date.toString());
+            dayDetail.put("factor", dayFactor);
+            dayDetail.put("description", getFactorDescription(date, dayFactor));
+            dailyFactors.add(dayDetail);
         }
 
-        // 周末溢价
-        if (weekendFactor.compareTo(BigDecimal.ONE) > 0) {
-            BigDecimal factor = weekendFactor;
-            BigDecimal amount = baseRent.multiply(factor.subtract(BigDecimal.ONE));
+        // 7. 获取长租折扣（按总天数）
+        BigDecimal rentalDiscount = getRentalDiscount(fullDays);
+
+        // 计算折扣前的总金额（基础租金 + 所有溢价）
+        BigDecimal amountBeforeDiscount = baseRent
+                .add(weekendTotal)
+                .add(holidayTotal)
+                .setScale(2, RoundingMode.HALF_UP);
+
+        // 计算折扣金额（基于折扣前总金额）
+        if (rentalDiscount.compareTo(BigDecimal.ONE) < 0) {
+            discountAmount = amountBeforeDiscount
+                    .multiply(BigDecimal.ONE.subtract(rentalDiscount))
+                    .negate()
+                    .setScale(2, RoundingMode.HALF_UP);
+        }
+
+        // 8. 计算动态租金（基础租金 + 各种溢价 - 折扣）
+        BigDecimal dynamicRent = baseRent
+                .add(weekendTotal)
+                .add(holidayTotal)
+                .add(discountAmount)  // discountAmount是负数，所以是减
+                .setScale(2, RoundingMode.HALF_UP);
+
+        // 9. 添加调价项到adjustments列表（用于前端显示）
+
+        // 添加周末溢价调价项
+        if (weekendTotal.compareTo(BigDecimal.ZERO) > 0) {
             Map<String, Object> adj = new HashMap<>();
             adj.put("type", "weekend");
             adj.put("name", "周末溢价");
-            adj.put("factor", factor);
-            adj.put("description", "周末+" + factor.multiply(BigDecimal.valueOf(100)).subtract(BigDecimal.valueOf(100)).intValue() + "%");
-            adj.put("amount", amount);
+            adj.put("factor", BigDecimal.valueOf(1.2));
+            adj.put("description", "周末溢价20%");
+            adj.put("amount", weekendTotal.setScale(2, RoundingMode.HALF_UP));
             adjustments.add(adj);
-            totalFactor = totalFactor.multiply(factor);
         }
 
-        // 长租折扣
-        if (rentalDiscount.compareTo(BigDecimal.ONE) < 0) {
-            BigDecimal factor = rentalDiscount;
-            BigDecimal amount = baseRent.multiply(BigDecimal.ONE.subtract(factor)).negate();
+        // 添加节假日溢价调价项
+        if (holidayTotal.compareTo(BigDecimal.ZERO) > 0) {
+            BigDecimal maxHolidayFactor = getMaxHolidayFactor(dateList);
+            int percent = maxHolidayFactor.multiply(BigDecimal.valueOf(100)).intValue();
+
+            Map<String, Object> adj = new HashMap<>();
+            adj.put("type", "holiday");
+            adj.put("name", "节假日溢价");
+            adj.put("factor", maxHolidayFactor);
+            adj.put("description", "节假日溢价" + percent + "%");
+            adj.put("amount", holidayTotal.setScale(2, RoundingMode.HALF_UP));
+            adjustments.add(adj);
+        }
+
+        // 添加长租折扣调价项
+        if (discountAmount.compareTo(BigDecimal.ZERO) < 0) {
             Map<String, Object> adj = new HashMap<>();
             adj.put("type", "discount");
             adj.put("name", "长租折扣");
-            adj.put("factor", factor);
-            adj.put("description", "长租" + (int)((1 - factor.doubleValue()) * 100) + "%优惠");
-            adj.put("amount", amount);
+            adj.put("factor", rentalDiscount);
+            adj.put("description", "长租" + (int)((1 - rentalDiscount.doubleValue()) * 100) + "%优惠");
+            adj.put("amount", discountAmount.setScale(2, RoundingMode.HALF_UP));
             adjustments.add(adj);
-            totalFactor = totalFactor.multiply(factor);
         }
 
-        // 6. 计算动态租金
-        BigDecimal dynamicRent = baseRent.multiply(totalFactor);
-
-        // 7. 计算保险费用
+        // 10. 计算保险费用（只计算完整天数）
         BigDecimal insuranceTotal = car.getInsurancePrice()
-                .multiply(BigDecimal.valueOf(days));
+                .multiply(BigDecimal.valueOf(fullDays))
+                .setScale(2, RoundingMode.HALF_UP);
 
-        // 8. 计算总计
-        BigDecimal total = dynamicRent.add(insuranceTotal).add(car.getDeposit());
+        // 11. 计算超时费用
+        BigDecimal overtimeAmount = BigDecimal.ZERO;
+        Map<String, Object> overtimeInfo = new HashMap<>();
 
-        // 9. 将调价明细转为JSON（使用 Hutool）
+        if (isOvertimeFullDay) {
+            // 超时按1天计算
+            // 超时的那一天应该是第 fullDays 天
+            LocalDate overtimeDate = pickup.plusDays(fullDays - 1).toLocalDate();  // 注意这里用 fullDays-1
+
+            // 检查这个日期是否已经在 dateList 中
+            if (!dateList.contains(overtimeDate)) {
+                // 如果不在，说明超时那天是全新的一天，需要添加到 dateList
+                dateList.add(overtimeDate);
+
+                Map<String, Object> overtimeDayDetail = new HashMap<>();
+                overtimeDayDetail.put("date", overtimeDate.toString());
+                overtimeDayDetail.put("factor", getDayFactor(overtimeDate));
+                overtimeDayDetail.put("description", getFactorDescription(overtimeDate, getDayFactor(overtimeDate)) + " (超时)");
+                dailyFactors.add(overtimeDayDetail);
+
+                // 重新计算各项费用
+                baseRent = baseRent.add(car.getPrice());
+
+                BigDecimal dayFactor = getDayFactor(overtimeDate);
+                BigDecimal dayPremium = car.getPrice().multiply(dayFactor.subtract(BigDecimal.ONE));
+
+                boolean isWeekend = overtimeDate.getDayOfWeek() == DayOfWeek.SATURDAY ||
+                        overtimeDate.getDayOfWeek() == DayOfWeek.SUNDAY;
+                boolean isHoliday = getHolidayFactor(overtimeDate).compareTo(BigDecimal.ONE) > 0;
+
+                if (isHoliday) {
+                    holidayTotal = holidayTotal.add(dayPremium);
+                } else if (isWeekend) {
+                    weekendTotal = weekendTotal.add(dayPremium);
+                }
+            }
+
+            // 重新计算长租折扣
+            rentalDiscount = getRentalDiscount(fullDays);
+
+            // 重新计算动态租金
+            dynamicRent = baseRent
+                    .add(weekendTotal)
+                    .add(holidayTotal)
+                    .multiply(rentalDiscount)
+                    .setScale(2, RoundingMode.HALF_UP);
+
+            // 重新计算保险
+            insuranceTotal = car.getInsurancePrice()
+                    .multiply(BigDecimal.valueOf(fullDays))
+                    .setScale(2, RoundingMode.HALF_UP);
+
+            // 重新计算折扣前的总金额
+            amountBeforeDiscount = baseRent
+                    .add(weekendTotal)
+                    .add(holidayTotal)
+                    .setScale(2, RoundingMode.HALF_UP);
+
+            // 重新计算折扣金额
+            discountAmount = amountBeforeDiscount
+                    .multiply(BigDecimal.ONE.subtract(rentalDiscount))
+                    .negate()
+                    .setScale(2, RoundingMode.HALF_UP);
+
+            // 计算超时费用金额（用于显示）
+            BigDecimal dayFactorForOvertime = getDayFactor(overtimeDate);
+            BigDecimal extraDayPrice = car.getPrice().multiply(dayFactorForOvertime);
+            BigDecimal overtimeFullDayAmount = extraDayPrice.multiply(rentalDiscount).setScale(2, RoundingMode.HALF_UP);
+
+            overtimeInfo.put("type", "overtime_fullday");
+            overtimeInfo.put("name", "超时费用");
+            overtimeInfo.put("description", "超时超过4小时，按1天计费");
+            overtimeInfo.put("amount", overtimeFullDayAmount);
+
+            // 添加超时调价项
+            Map<String, Object> adj = new HashMap<>();
+            adj.put("type", "overtime");
+            adj.put("name", "超时费用");
+            adj.put("description", "超时超过4小时，按1天计费");
+            adj.put("amount", overtimeFullDayAmount);
+            adjustments.add(adj);
+        }else if (remainingHours > 0) {
+            // 按小时计费
+            // 超时的那一天（取当天的小时费率）
+            LocalDate overtimeDate = pickup.plusDays(fullDays).toLocalDate();
+            BigDecimal dayFactorForOvertime = getDayFactor(overtimeDate);
+
+            // 溢价后的小时费率
+            BigDecimal hourlyRate = car.getPrice()
+                    .multiply(dayFactorForOvertime)
+                    .divide(BigDecimal.valueOf(24), 2, RoundingMode.HALF_UP);
+
+            // 计算超时费用
+            overtimeAmount = hourlyRate.multiply(BigDecimal.valueOf(remainingHours))
+                    .setScale(2, RoundingMode.HALF_UP);
+
+            // 计算动态租金：先计算折扣后租金，再加上超时费用
+            dynamicRent = baseRent
+                    .add(weekendTotal)
+                    .add(holidayTotal)
+                    .add(discountAmount)  // 先应用折扣
+                    .add(overtimeAmount)   // 再加上超时费用
+                    .setScale(2, RoundingMode.HALF_UP);
+
+            overtimeInfo.put("type", "overtime_hourly");
+            overtimeInfo.put("name", "超时费用");
+            overtimeInfo.put("hours", remainingHours);
+            overtimeInfo.put("rate", hourlyRate);
+            overtimeInfo.put("description", "超时" + remainingHours + "小时");
+            overtimeInfo.put("amount", overtimeAmount);
+
+            // 添加超时调价项
+            Map<String, Object> adj = new HashMap<>();
+            adj.put("type", "overtime");
+            adj.put("name", "超时费用");
+            adj.put("description", "超时" + remainingHours + "小时 (¥" + hourlyRate + "/小时)");
+            adj.put("amount", overtimeAmount);
+            adjustments.add(adj);
+        }
+
+        // 12. 计算总计
+        BigDecimal total = dynamicRent.add(insuranceTotal).add(car.getDeposit())
+                .setScale(2, RoundingMode.HALF_UP);
+
+        // 13. 将调价明细转为JSON
         String priceAdjustmentsJson = JSONUtil.toJsonStr(adjustments);
+        String dailyFactorsJson = JSONUtil.toJsonStr(dailyFactors);
 
+        // 设置返回值
         result.put("carId", carId);
-        result.put("days", days);
+        result.put("days", fullDays);
+        result.put("hours", remainingHours);
         result.put("dailyPrice", car.getPrice());
-        result.put("baseRent", baseRent);
-        result.put("dynamicRent", dynamicRent);
+        result.put("baseRent", baseRent.setScale(2, RoundingMode.HALF_UP));  // 基础租金 = 日租金 × 天数
+        result.put("weekendPremium", weekendTotal.setScale(2, RoundingMode.HALF_UP));
+        result.put("holidayPremium", holidayTotal.setScale(2, RoundingMode.HALF_UP));
+        result.put("discountAmount", discountAmount.setScale(2, RoundingMode.HALF_UP));
+        result.put("dynamicRent", dynamicRent.setScale(2, RoundingMode.HALF_UP));
+        result.put("dailyFactors", dailyFactorsJson);
         result.put("insurancePrice", car.getInsurancePrice());
         result.put("insuranceTotal", insuranceTotal);
-        result.put("deposit", car.getDeposit());
+        result.put("deposit", car.getDeposit().setScale(2));
+        result.put("overtimeAmount", overtimeAmount);
+        result.put("overtimeInfo", overtimeInfo);
         result.put("totalPrice", total);
-        result.put("priceAdjustments", priceAdjustmentsJson);  // 调价明细
+        result.put("priceAdjustments", priceAdjustmentsJson);
 
         return result;
     }
-
     /**
-     * 获取周末系数
+     * 获取日期列表中的最大节假日系数
      */
-    private BigDecimal getWeekendFactor(LocalDate start, LocalDate end) {
-        // 检查租期内是否包含周六日
-        LocalDate date = start;
-        boolean hasWeekend = false;
-        while (!date.isAfter(end)) {
-            DayOfWeek dayOfWeek = date.getDayOfWeek();
-            if (dayOfWeek == DayOfWeek.SATURDAY || dayOfWeek == DayOfWeek.SUNDAY) {
-                hasWeekend = true;
-                break;
-            }
-            date = date.plusDays(1);
-        }
-        return hasWeekend ? BigDecimal.valueOf(1.2) : BigDecimal.ONE; // 周末溢价20%
-    }
-
-    /**
-     * 获取季节系数
-     */
-    private BigDecimal getSeasonFactor(LocalDate start, LocalDate end) {
-        // 查询季节系数表，取重叠日期的最大系数
-        List<SeasonFactor> factors = seasonFactorMapper.selectOverlapping(start, end);
+    private BigDecimal getMaxHolidayFactor(List<LocalDate> dateList) {
         BigDecimal maxFactor = BigDecimal.ONE;
-        for (SeasonFactor factor : factors) {
-            if (factor.getFactor().compareTo(maxFactor) > 0) {
-                maxFactor = factor.getFactor();
+        for (LocalDate date : dateList) {
+            BigDecimal factor = getHolidayFactor(date);
+            if (factor.compareTo(maxFactor) > 0) {
+                maxFactor = factor;
             }
         }
         return maxFactor;
     }
+    /**
+     * 获取指定日期的系数（不叠加，取最高值）
+     */
+    private BigDecimal getDayFactor(LocalDate date) {
+        // 1. 获取节假日系数
+        BigDecimal holidayFactor = getHolidayFactor(date);
+
+        // 2. 获取周末系数
+        BigDecimal weekendFactor = getWeekendFactor(date);
+
+        // 3. 取最大值（不叠加）
+        return holidayFactor.compareTo(weekendFactor) > 0 ? holidayFactor : weekendFactor;
+    }
 
     /**
-     * 获取供需系数（基于库存）
-     * 库存越少，系数越高
+     * 获取节假日系数（根据节假日类型区分）
      */
-    private BigDecimal getDemandFactor(Integer stock) {
-        if (stock == null) return BigDecimal.ONE;
+    private BigDecimal getHolidayFactor(LocalDate date) {
+        int year = date.getYear();
 
-        // 从系统配置获取供需系数阈值
-        String config = systemConfigMapper.getValueByKey("demand_factors");
-        // 格式：{"5":1.2, "3":1.5, "1":2.0}
+        // 查询时：
+        // 1. 优先找当年精确匹配的数据（year = 当前年份）
+        // 2. 如果没有，找 year = NULL 的固定节假日
+        List<SeasonFactor> holidayFactors = seasonFactorMapper.selectByDate(date, year);
 
-        if (stock <= 1) return BigDecimal.valueOf(2.0);
-        if (stock <= 3) return BigDecimal.valueOf(1.5);
-        if (stock <= 5) return BigDecimal.valueOf(1.2);
-        return BigDecimal.ONE;
+        if (holidayFactors.isEmpty()) {
+            return BigDecimal.ONE;
+        }
+
+        // 取最大系数
+        return holidayFactors.stream()
+                .map(SeasonFactor::getFactor)
+                .max(BigDecimal::compareTo)
+                .orElse(BigDecimal.ONE);
+    }
+    /**
+     * 获取周末系数
+     */
+    private BigDecimal getWeekendFactor(LocalDate date) {
+        boolean isWeekend = date.getDayOfWeek() == DayOfWeek.SATURDAY ||
+                date.getDayOfWeek() == DayOfWeek.SUNDAY;
+
+        return isWeekend ? BigDecimal.valueOf(1.2) : BigDecimal.ONE;
+    }
+    /**
+     * 获取系数描述
+     */
+    private String getFactorDescription(LocalDate date, BigDecimal factor) {
+        if (factor.compareTo(BigDecimal.ONE) == 0) {
+            return "平日价";
+        }
+
+        boolean isWeekend = date.getDayOfWeek() == DayOfWeek.SATURDAY ||
+                date.getDayOfWeek() == DayOfWeek.SUNDAY;
+
+        // 检查是否是节假日
+        List<SeasonFactor> holidayFactors = seasonFactorMapper.selectByDate(date, date.getYear());
+
+        if (!holidayFactors.isEmpty()) {
+            // 取最贵的节假日
+            SeasonFactor maxFactor = holidayFactors.stream()
+                    .max(Comparator.comparing(SeasonFactor::getFactor))
+                    .orElse(null);
+
+            if (maxFactor != null) {
+                return maxFactor.getName() + "溢价" +
+                        maxFactor.getFactor().multiply(BigDecimal.valueOf(100)).intValue() + "%";
+            }
+        }
+
+        if (isWeekend) {
+            return "周末溢价20%";
+        }
+
+        return "价格系数 " + factor;
     }
 
     /**
@@ -412,6 +697,7 @@ public class OrderService {
         order.setPickupLocation(car.getPickupLocation());
         order.setReturnLocation(car.getReturnLocation());
         order.setTotalPrice((BigDecimal) priceInfo.get("totalPrice"));
+        order.setDynamicRent((BigDecimal) priceInfo.get("dynamicRent"));
         order.setDeposit(car.getDeposit());
 
         // 8. 设置调价明细

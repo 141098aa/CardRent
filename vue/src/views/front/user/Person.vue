@@ -102,7 +102,7 @@
               type="primary"
               size="small"
               class="verify-btn"
-              @click="showRealNameDialog = true">
+              @click="openRealNameDialog">
               去认证
             </el-button>
             <el-button
@@ -152,11 +152,15 @@
             </div>
             <!-- 未认证状态 - 显示上传按钮 -->
             <el-button
-              v-if="!data.user.driverName && data.user.driverLicenseStatus === undefined"
+              v-if="
+                !data.user.driverLicenseVerified &&
+                data.user.driverLicenseStatus !== 0 &&
+                data.user.driverLicenseStatus !== 2
+              "
               type="primary"
               size="small"
               class="verify-btn"
-              @click="showDriverLicenseDialog = true">
+              @click="openDriverLicenseDialog">
               上传
             </el-button>
             <!-- 审核中状态 - 显示禁用按钮 -->
@@ -224,6 +228,9 @@
     <!-- 实名认证对话框 -->
     <el-dialog v-model="showRealNameDialog" title="实名认证" width="550px" destroy-on-close>
       <el-form :model="realNameForm" label-width="100px" ref="realNameFormRef" :rules="realNameRules">
+        <el-form-item label="手机号" prop="phone">
+          <el-input v-model="realNameForm.phone" placeholder="请输入手机号" />
+        </el-form-item>
         <el-form-item label="真实姓名" prop="realName">
           <el-input v-model="realNameForm.realName" placeholder="请输入真实姓名" />
         </el-form-item>
@@ -341,6 +348,9 @@
     <el-dialog v-model="showDriverLicenseDialog" title="驾驶证认证" width="550px" destroy-on-close>
       <div class="upload-content">
         <el-form :model="licenseForm" label-width="100px" ref="licenseFormRef" :rules="licenseRules">
+          <el-form-item label="手机号" prop="phone">
+            <el-input v-model="licenseForm.phone" placeholder="请输入手机号" />
+          </el-form-item>
           <el-form-item label="姓名" prop="name">
             <el-input v-model="licenseForm.name" placeholder="请输入驾驶证上的姓名" />
           </el-form-item>
@@ -526,6 +536,7 @@ const showCreditOption = ref(true)
 const realNameForm = reactive({
   realName: '',
   idNumber: '',
+  phone: '',
   idFrontImage: '',
   idBackImage: ''
 })
@@ -539,13 +550,18 @@ const realNameRules = {
   idNumber: [
     { required: true, message: '请输入身份证号', trigger: 'blur' },
     {
-      pattern: /^[1-9]\d{5}(18|19|20)\d{2}(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])\d{3}[\dXx]$/,
-      message: '请输入有效的身份证号',
+      // 15位全数字 或 18位前17位数字最后一位数字或X/x，仅验证长度和字符类型
+      pattern: /^\d{15}$|^\d{17}[\dXx]$/,
+      message: '身份证号应为15位数字或18位数字（最后一位可为X）',
       trigger: 'blur'
     }
   ],
   idFrontImage: [{ required: true, message: '请上传身份证正面', trigger: 'change' }],
-  idBackImage: [{ required: true, message: '请上传身份证背面', trigger: 'change' }]
+  idBackImage: [{ required: true, message: '请上传身份证背面', trigger: 'change' }],
+  phone: [
+    { required: true, message: '请输入手机号', trigger: 'blur' },
+    { pattern: /^1[3-9]\d{9}$/, message: '请输入有效的手机号', trigger: 'blur' }
+  ]
 }
 
 // 驾驶证表单
@@ -553,6 +569,7 @@ const licenseForm = reactive({
   name: '',
   licenseNumber: '',
   vehicleType: '',
+  phone: '',
   validPeriod: [],
   licenseFrontImage: '',
   licenseBackImage: ''
@@ -564,7 +581,36 @@ const licenseRules = {
   licenseNumber: [{ required: true, message: '请输入驾驶证号', trigger: 'blur' }],
   vehicleType: [{ required: true, message: '请输入准驾车型', trigger: 'blur' }],
   validPeriod: [{ required: true, message: '请选择有效期限', trigger: 'change' }],
-  licenseFrontImage: [{ required: true, message: '请上传驾驶证正面', trigger: 'change' }]
+  licenseFrontImage: [{ required: true, message: '请上传驾驶证正面', trigger: 'change' }],
+  phone: [
+    { required: true, message: '请输入手机号', trigger: 'blur' },
+    { pattern: /^1[3-9]\d{9}$/, message: '请输入有效的手机号', trigger: 'blur' }
+  ]
+}
+// 打开实名认证对话框（从"去认证"按钮触发）
+const openRealNameDialog = () => {
+  // 预填充当前手机号
+  realNameForm.phone = data.user.phone || ''
+  // 其他字段清空
+  realNameForm.realName = ''
+  realNameForm.idNumber = ''
+  realNameForm.idFrontImage = ''
+  realNameForm.idBackImage = ''
+  showRealNameDialog.value = true
+}
+
+// 打开驾驶证认证对话框（从"上传"按钮触发）
+const openDriverLicenseDialog = () => {
+  // 预填充当前手机号
+  licenseForm.phone = data.user.phone || ''
+  // 其他字段清空
+  licenseForm.name = ''
+  licenseForm.licenseNumber = ''
+  licenseForm.vehicleType = ''
+  licenseForm.validPeriod = []
+  licenseForm.licenseFrontImage = ''
+  licenseForm.licenseBackImage = ''
+  showDriverLicenseDialog.value = true
 }
 // 禁用过去的日期（只能选择今天及之后的日期）
 const disabledDate = (time) => {
@@ -795,6 +841,7 @@ const handleReuploadRealName = () => {
 
   realNameForm.realName = data.user.realName || ''
   realNameForm.idNumber = data.user.idNumber || ''
+  realNameForm.phone = data.user.phone || '' // 预填充当前手机号
   realNameForm.idFrontImage = data.user.idFrontImage || ''
   realNameForm.idBackImage = data.user.idBackImage || ''
 
@@ -808,6 +855,7 @@ const handleReuploadLicense = () => {
   licenseForm.name = data.user.driverName || ''
   licenseForm.licenseNumber = data.user.licenseNumber || ''
   licenseForm.vehicleType = data.user.vehicleType || ''
+  licenseForm.phone = data.user.phone || '' // 预填充当前手机号
 
   if (data.user.validStart && data.user.validEnd) {
     licenseForm.validPeriod = [new Date(data.user.validStart), new Date(data.user.validEnd)]
@@ -820,7 +868,33 @@ const handleReuploadLicense = () => {
 
   showDriverLicenseDialog.value = true
 }
+// 手机号变更检查和处理
+const handlePhoneChange = (formPhone, submitCallback) => {
+  // 如果没有填写手机号或与当前一致，直接执行提交
+  if (!formPhone || data.user.phone === formPhone) {
+    submitCallback(false)
+    return
+  }
 
+  // 手机号不一致，弹出确认框
+  ElMessageBox.confirm(
+    `您填写的手机号 ${formPhone} 与当前账户手机号 ${data.user.phone} 不一致，是否更新手机号？`,
+    '手机号变更提示',
+    {
+      confirmButtonText: '确认更新',
+      cancelButtonText: '暂不更新',
+      type: 'warning'
+    }
+  )
+    .then(() => {
+      // 用户确认更新手机号
+      submitCallback(true)
+    })
+    .catch(() => {
+      // 用户取消更新手机号
+      submitCallback(false)
+    })
+}
 // 提交实名认证
 const submitRealName = () => {
   if (!realNameForm.idFrontImage) {
@@ -835,30 +909,46 @@ const submitRealName = () => {
   realNameFormRef.value?.validate((valid) => {
     if (!valid) return
 
-    realNameLoading.value = true
-    userAuthApi
-      .submitRealName({
+    // 处理手机号变更
+    handlePhoneChange(realNameForm.phone, (updatePhone) => {
+      realNameLoading.value = true
+
+      // 构建提交数据
+      const submitData = {
         userId: data.user.id,
         realName: realNameForm.realName,
         idNumber: realNameForm.idNumber,
         idFrontImage: realNameForm.idFrontImage,
         idBackImage: realNameForm.idBackImage
-      })
-      .then((res) => {
-        if (res.code === '200') {
-          ElMessage.success('实名认证提交成功，等待审核')
-          showRealNameDialog.value = false
-          Object.keys(realNameForm).forEach((key) => {
-            realNameForm[key] = ''
-          })
-          loadAuthStatus()
-        } else {
-          ElMessage.error(res.msg || '认证失败')
-        }
-      })
-      .finally(() => {
-        realNameLoading.value = false
-      })
+      }
+
+      // 如果确认更新手机号，则一并提交
+      if (updatePhone) {
+        submitData.phone = realNameForm.phone
+      }
+
+      userAuthApi
+        .submitRealName(submitData)
+        .then((res) => {
+          if (res.code === '200') {
+            ElMessage.success('实名认证提交成功，等待审核')
+            showRealNameDialog.value = false
+            Object.keys(realNameForm).forEach((key) => {
+              realNameForm[key] = ''
+            })
+            loadAuthStatus()
+            // 如果手机号有更新，重新加载用户信息
+            if (updatePhone) {
+              loadUser()
+            }
+          } else {
+            ElMessage.error(res.msg || '认证失败')
+          }
+        })
+        .finally(() => {
+          realNameLoading.value = false
+        })
+    })
   })
 }
 
@@ -872,9 +962,12 @@ const submitLicense = () => {
   licenseFormRef.value?.validate((valid) => {
     if (!valid) return
 
-    licenseLoading.value = true
-    userAuthApi
-      .submitDriverLicense({
+    // 处理手机号变更
+    handlePhoneChange(licenseForm.phone, (updatePhone) => {
+      licenseLoading.value = true
+
+      // 构建提交数据
+      const submitData = {
         userId: data.user.id,
         driverName: licenseForm.name,
         licenseNumber: licenseForm.licenseNumber,
@@ -883,26 +976,39 @@ const submitLicense = () => {
         validEnd: licenseForm.validPeriod[1],
         licenseFrontImage: licenseForm.licenseFrontImage,
         licenseBackImage: licenseForm.licenseBackImage
-      })
-      .then((res) => {
-        if (res.code === '200') {
-          ElMessage.success('驾驶证认证提交成功，等待审核')
-          showDriverLicenseDialog.value = false
-          Object.keys(licenseForm).forEach((key) => {
-            if (key === 'validPeriod') {
-              licenseForm[key] = []
-            } else {
-              licenseForm[key] = ''
+      }
+
+      // 如果确认更新手机号，则一并提交
+      if (updatePhone) {
+        submitData.phone = licenseForm.phone
+      }
+
+      userAuthApi
+        .submitDriverLicense(submitData)
+        .then((res) => {
+          if (res.code === '200') {
+            ElMessage.success('驾驶证认证提交成功，等待审核')
+            showDriverLicenseDialog.value = false
+            Object.keys(licenseForm).forEach((key) => {
+              if (key === 'validPeriod') {
+                licenseForm[key] = []
+              } else {
+                licenseForm[key] = ''
+              }
+            })
+            loadAuthStatus()
+            // 如果手机号有更新，重新加载用户信息
+            if (updatePhone) {
+              loadUser()
             }
-          })
-          loadAuthStatus()
-        } else {
-          ElMessage.error(res.msg || '提交失败')
-        }
-      })
-      .finally(() => {
-        licenseLoading.value = false
-      })
+          } else {
+            ElMessage.error(res.msg || '提交失败')
+          }
+        })
+        .finally(() => {
+          licenseLoading.value = false
+        })
+    })
   })
 }
 
