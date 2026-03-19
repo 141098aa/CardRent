@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.mapper.UserFavoriteMapper">
+
+    <resultMap id="BaseResultMap" type="com.example.entity.content.UserFavorite">
+        <id property="id" column="id"/>
+        <result property="userId" column="user_id"/>
+        <result property="targetId" column="target_id"/>
+        <result property="targetType" column="target_type"/>
+        <result property="createdTime" column="created_time"/>
+    </resultMap>
+
+    <!-- 添加收藏 -->
+    <insert id="insert" parameterType="com.example.entity.content.UserFavorite" useGeneratedKeys="true" keyProperty="id">
+        insert into user_favorite (user_id, target_id, target_type, created_time)
+        values (#{userId}, #{targetId}, #{targetType}, now())
+    </insert>
+
+    <!-- 取消收藏 -->
+    <delete id="delete">
+        delete from user_favorite
+        where user_id = #{userId}
+          and target_id = #{targetId}
+          and target_type = #{targetType}
+    </delete>
+
+    <!-- 检查是否已收藏 -->
+    <select id="checkExists" resultType="int">
+        select count(*)
+        from user_favorite
+        where user_id = #{userId}
+          and target_id = #{targetId}
+          and target_type = #{targetType}
+    </select>
+
+    <!-- 查询用户的收藏列表 -->
+    <select id="selectUserFavorites" resultMap="BaseResultMap">
+        select *
+        from user_favorite
+        where user_id = #{userId}
+          and target_type = #{targetType}
+        order by created_time desc
+    </select>
+
+    <!-- 查询用户的收藏总数 -->
+    <select id="countUserFavorites" resultType="int">
+        select count(*)
+        from user_favorite
+        where user_id = #{userId}
+          and target_type = #{targetType}
+    </select>
+
+    <!-- 批量查询用户是否收藏 -->
+    <select id="selectUserFavoriteIds" resultType="java.lang.Integer">
+        select target_id
+        from user_favorite
+        where user_id = #{userId}
+        and target_type = #{targetType}
+        and target_id in
+        <foreach collection="targetIds" item="targetId" open="(" separator="," close=")">
+            #{targetId}
+        </foreach>
+    </select>
+
+    <!-- 根据ID查询收藏详情 -->
+    <select id="selectById" resultMap="BaseResultMap">
+        select *
+        from user_favorite
+        where id = #{id}
+    </select>
+
+    <!-- 清空用户某类型的所有收藏 -->
+    <delete id="deleteByUserAndType">
+        delete from user_favorite
+        where user_id = #{userId}
+          and target_type = #{targetType}
+    </delete>
+
+</mapper>

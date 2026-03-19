@@ -199,6 +199,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Search, Star, StarFilled } from '@element-plus/icons-vue'
 import { userCarApi } from '@/utils/api'
+import { addFavorite, removeFavorite, checkFavorite } from '@/utils/api/user/favorite'
 
 const router = useRouter()
 const route = useRoute()
@@ -208,6 +209,9 @@ const pageSize = ref(8)
 const sortBy = ref('default')
 const total = ref(0)
 const carList = ref([])
+
+// 用户信息
+const user = ref(JSON.parse(localStorage.getItem('system-user') || '{}'))
 
 // 搜索表单
 const searchForm = reactive({
@@ -281,12 +285,15 @@ const loadCarList = async () => {
   }
 }
 
-// 加载收藏状态
-const loadFavoriteStatus = () => {
-  const favorites = JSON.parse(localStorage.getItem('user-favorites') || '[]')
-  carList.value.forEach((car) => {
-    car.isFavorite = favorites.some((item) => item.id === car.id)
-  })
+// 初始化时检查收藏状态
+const loadFavoriteStatus = async () => {
+  if (!user.value?.id) return
+  for (let car of carList.value) {
+    const res = await checkFavorite(car.id, 'car')
+    if (res.code === '200') {
+      car.isFavorite = res.data
+    }
+  }
 }
 
 // 搜索
@@ -362,37 +369,30 @@ const quickFilter = (filter) => {
 }
 
 // 收藏切换
-const toggleFavorite = (car) => {
-  car.isFavorite = !car.isFavorite
+const toggleFavorite = async (car) => {
+  if (!user.value?.id) {
+    ElMessage.warning('请先登录')
+    router.push('/login')
+    return
+  }
 
-  let favorites = JSON.parse(localStorage.getItem('user-favorites') || '[]')
-
-  if (car.isFavorite) {
-    if (!favorites.some((item) => item.id === car.id)) {
-      favorites.push({
-        id: car.id,
-        brand: car.brandName || car.brand,
-        model: car.model,
-        price: car.price,
-        image: car.image,
-        rating: car.rating,
-        seats: car.seats,
-        gear: car.gear,
-        energy: car.energy,
-        year: car.year,
-        tag: car.tag,
-        features: car.features
+  try {
+    if (car.isFavorite) {
+      await removeFavorite(car.id, 'car')
+      ElMessage.success('已取消收藏')
+    } else {
+      await addFavorite({
+        targetId: car.id,
+        targetType: 'car'
       })
       ElMessage.success('已添加到收藏')
     }
-  } else {
-    favorites = favorites.filter((item) => item.id !== car.id)
-    ElMessage.success('已取消收藏')
+    car.isFavorite = !car.isFavorite
+  } catch (error) {
+    console.error('收藏操作失败:', error)
+    ElMessage.error('操作失败，请稍后重试')
   }
-
-  localStorage.setItem('user-favorites', JSON.stringify(favorites))
 }
-
 // 立即租车
 const quickRent = (car) => {
   ElMessage.success(`正在查看 ${car.brandName || car.brand} ${car.model} 详情`)

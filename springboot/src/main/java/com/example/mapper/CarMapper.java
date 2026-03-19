@@ -110,4 +110,5 @@ public interface CarMapper {
     int decreaseStock(@Param("id") Integer id, @Param("count") Integer count);
     void increaseStock(@Param("id") Integer id, @Param("count") Integer count);
 
+    List<Car> selectByIds(List<Integer> carIds);
 }

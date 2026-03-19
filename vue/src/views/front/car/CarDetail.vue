@@ -390,6 +390,7 @@ import {
 import { getCarDetail, getHotRecommend, getRatingRecommend } from '@/utils/api/user/car'
 import { createOrder, previewPrice } from '@/utils/api/user/order'
 import { getUserById } from '@/utils/api/user/profile'
+import { userFavoriteApi } from '@/utils/api'
 
 const route = useRoute()
 const router = useRouter()
@@ -604,9 +605,13 @@ const loadCarDetail = async (carId) => {
     if (res.code === '200') {
       car.value = res.data
 
-      // 从localStorage获取收藏状态
-      const favorites = JSON.parse(localStorage.getItem('user-favorites') || '[]')
-      car.value.isFavorite = favorites.some((item) => item.id === car.value.id)
+      // 从后端检查收藏状态（如果用户已登录）
+      if (user.value?.id) {
+        const isFavorite = await checkFavoriteStatus(carId)
+        car.value.isFavorite = isFavorite
+      } else {
+        car.value.isFavorite = false
+      }
     } else {
       ElMessage.error(res.msg || '加载失败')
     }
@@ -615,7 +620,6 @@ const loadCarDetail = async (carId) => {
     ElMessage.error('加载失败')
   } finally {
     loading.value = false
-    // 滚动到顶部
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 }
@@ -660,25 +664,51 @@ onMounted(() => {
 })
 
 // 切换收藏
-const toggleFavorite = () => {
+const toggleFavorite = async () => {
   if (!car.value) return
+  if (!checkLogin()) return
 
-  car.value.isFavorite = !car.value.isFavorite
-
-  // 更新收藏列表
-  let favorites = JSON.parse(localStorage.getItem('user-favorites') || '[]')
-
-  if (car.value.isFavorite) {
-    if (!favorites.some((item) => item.id === car.value.id)) {
-      favorites.push(car.value)
-      ElMessage.success('已添加到收藏')
+  try {
+    if (car.value.isFavorite) {
+      // 取消收藏
+      const res = await userFavoriteApi.removeFavorite(car.value.id, 'car')
+      if (res.code === '200') {
+        car.value.isFavorite = false
+        ElMessage.success('已取消收藏')
+      } else {
+        ElMessage.error(res.msg || '取消收藏失败')
+      }
+    } else {
+      // 添加收藏
+      const res = await userFavoriteApi.addFavorite({
+        targetId: car.value.id,
+        targetType: 'car'
+      })
+      if (res.code === '200') {
+        car.value.isFavorite = true
+        ElMessage.success('已添加到收藏')
+      } else {
+        ElMessage.error(res.msg || '添加收藏失败')
+      }
     }
-  } else {
-    favorites = favorites.filter((item) => item.id !== car.value.id)
-    ElMessage.success('已取消收藏')
+  } catch (error) {
+    console.error('收藏操作失败:', error)
+    ElMessage.error(error.response?.data?.msg || error.message || '操作失败，请稍后重试')
   }
+}
+// 检查车辆是否已被收藏
+const checkFavoriteStatus = async (carId) => {
+  if (!user.value?.id) return false
 
-  localStorage.setItem('user-favorites', JSON.stringify(favorites))
+  try {
+    const res = await userFavoriteApi.checkFavorite(carId, 'car')
+    if (res.code === '200') {
+      return res.data // 返回布尔值
+    }
+  } catch (error) {
+    console.error('检查收藏状态失败:', error)
+  }
+  return false
 }
 
 // 检查认证状态

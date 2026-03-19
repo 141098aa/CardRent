@@ -7,9 +7,10 @@ import * as authApi from './manager/auth'
 import * as userProfileApi from './user/profile'
 import * as userAuthApi from './user/auth'
 import * as userCarApi from './user/car'
+import * as userFavoriteApi from './user/favorite'
 
 // 统一导出
-export { adminApi, userApi, carApi, orderApi, authApi, userProfileApi, userAuthApi, userCarApi }
+export { adminApi, userApi, carApi, orderApi, authApi, userProfileApi, userAuthApi, userCarApi, userFavoriteApi }
 
 // 也可以使用默认导出
 // export default {

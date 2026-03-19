@@ -79,7 +79,12 @@
     </select>
 
     <select id="selectById" resultMap="CarResultMap">
-        select c.*, b.name as brand_name
+        select
+            c.*,
+            b.name as brand_name,
+            (select JSON_ARRAYAGG(category_id)
+             from car_category_relation
+             where car_id = c.id) as category_ids
         from car c
                  left join car_brand b on c.brand_id = b.id
         where c.id = #{id}
@@ -333,6 +338,17 @@
         from car
         where status = 'available' and seats is not null
         order by seats
+    </select>
+    <select id="selectByIds" resultMap="CarResultMap">
+        select
+        c.*,
+        b.name as brand_name
+        from car c
+        left join car_brand b on c.brand_id = b.id
+        where c.id in
+        <foreach collection="carIds" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
     </select>
 
     <update id="decreaseStock">

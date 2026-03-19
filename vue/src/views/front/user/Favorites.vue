@@ -97,9 +97,11 @@
             </div>
 
             <div class="favorite-card__features">
-              <span v-for="feature in car.features.slice(0, 3)" :key="feature" class="feature-tag">
-                {{ feature }}
-              </span>
+              <template v-if="car.features && car.features.length">
+                <span v-for="feature in car.features.slice(0, 3)" :key="feature" class="feature-tag">
+                  {{ feature }}
+                </span>
+              </template>
             </div>
 
             <div class="favorite-card__footer">
@@ -170,11 +172,11 @@
     </div>
 
     <!-- 分页 -->
-    <div class="pagination" v-if="currentFavorites.length > 0">
+    <div class="pagination" v-if="total > 0">
       <el-pagination
         v-model:current-page="currentPage"
         v-model:page-size="pageSize"
-        :total="currentFavorites.length"
+        :total="total"
         :page-sizes="activeTab === 'cars' ? [6, 9, 12] : [5, 10, 15]"
         layout="total, sizes, prev, pager, next, jumper"
         @size-change="handleSizeChange"
@@ -223,13 +225,38 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { StarFilled, Delete, Close, Van, Document, View, ChatLineRound } from '@element-plus/icons-vue'
+import { userFavoriteApi } from '@/utils/api'
+import { userCarApi } from '@/utils/api'
 
 const router = useRouter()
 const loading = ref(false)
 const activeTab = ref('cars')
 const currentPage = ref(1)
 const pageSize = ref(6)
+const total = ref(0)
 
+// 检查用户是否登录
+const checkLogin = () => {
+  const userStr = localStorage.getItem('system-user')
+  if (!userStr) {
+    ElMessage.warning('请先登录')
+    router.push('/login')
+    return false
+  }
+  return true
+}
+
+// 加载推荐车型
+const loadRecommendedCars = async () => {
+  try {
+    const res = await userCarApi.getHotRecommend(3)
+    if (res.code === '200') {
+      recommendedCars.value = res.data || []
+    }
+  } catch (error) {
+    console.error('加载推荐车型失败:', error)
+  }
+}
 // 收藏列表
 const carFavorites = ref([])
 const newsFavorites = ref([])
@@ -303,98 +330,64 @@ const recommendedNews = ref([
 ])
 
 // 加载收藏数据
-const loadFavorites = () => {
+const loadFavorites = async () => {
   loading.value = true
   try {
-    // 从 localStorage 获取收藏数据
-    const savedCarFavorites = localStorage.getItem('user-car-favorites')
-    const savedNewsFavorites = localStorage.getItem('user-news-favorites')
+    // 获取车辆收藏列表 - 使用当前页码和每页大小
+    const carRes = await userFavoriteApi.getFavoriteList({
+      targetType: 'car',
+      pageNum: currentPage.value,
+      pageSize: pageSize.value
+    })
 
-    if (savedCarFavorites) {
-      carFavorites.value = JSON.parse(savedCarFavorites)
+    if (carRes.code === '200') {
+      // 后端返回的是 PageInfo 格式，包含 list 和 total
+      carFavorites.value = carRes.data?.list || []
+      total.value = carRes.data?.total || 0
     } else {
-      // 模拟汽车收藏数据
-      carFavorites.value = [
-        {
-          id: 2,
-          brand: '丰田',
-          model: '凯美瑞',
-          seats: 5,
-          gear: '自动',
-          energy: '燃油',
-          year: 2023,
-          price: 198,
-          rating: 4.7,
-          tag: '商务舒适',
-          features: ['真皮座椅', '天窗', '座椅加热'],
-          image: 'https://images.unsplash.com/photo-1541899481282-d53bffe3c35d?auto=format&fit=crop&w=800&q=80'
-        },
-        {
-          id: 5,
-          brand: '宝马',
-          model: '3系',
-          seats: 5,
-          gear: '自动',
-          energy: '燃油',
-          year: 2023,
-          price: 329,
-          rating: 4.8,
-          tag: '运动操控',
-          features: ['运动模式', '哈曼卡顿', '抬头显示'],
-          image: 'https://images.unsplash.com/photo-1555215695-3004980ad54e?auto=format&fit=crop&w=800&q=80'
-        }
-      ]
+      ElMessage.error(carRes.msg || '加载收藏失败')
     }
 
-    if (savedNewsFavorites) {
-      newsFavorites.value = JSON.parse(savedNewsFavorites)
-    } else {
-      // 模拟资讯收藏数据
-      newsFavorites.value = [
-        {
-          id: 1,
-          title: '新能源汽车租赁补贴政策延至2025年',
-          summary: '近日，国家发改委等三部门联合发布通知，将新能源汽车租赁补贴政策延长至2025年底...',
-          category: { id: 'policy', name: '政策法规', color: '#f59e0b' },
-          image: 'https://images.unsplash.com/photo-1593941707882-a5bba14938c7?auto=format&fit=crop&w=800&q=80',
-          date: '2024-03-15',
-          views: 2345,
-          comments: 56,
-          isHot: true,
-          source: '新华社'
-        },
-        {
-          id: 4,
-          title: '五一出游季：长租7天以上享7折优惠',
-          summary: '五一假期将至，易租车推出长租优惠活动，租车7天以上可享7折优惠...',
-          category: { id: 'promotion', name: '优惠活动', color: '#f56c6c' },
-          image: 'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?auto=format&fit=crop&w=800&q=80',
-          date: '2024-03-12',
-          views: 4567,
-          comments: 123,
-          isHot: true,
-          source: '易租车官方'
-        }
-      ]
-    }
+    // 获取资讯收藏列表（如果有资讯接口）
+    // const newsRes = await userFavoriteApi.getFavoriteList({
+    //   targetType: 'news',
+    //   pageNum: 1,
+    //   pageSize: 999
+    // })
+    // if (newsRes.code === '200') {
+    //   newsFavorites.value = newsRes.data?.list || []
+    // } else if (newsRes.code !== '200') {
+    //   ElMessage.error(newsRes.msg || '加载资讯收藏失败')
+    // }
   } catch (error) {
     console.error('加载收藏失败:', error)
-    ElMessage.error('加载收藏失败')
+    ElMessage.error('加载收藏失败，请稍后重试')
   } finally {
     loading.value = false
   }
 }
 
 // 从收藏中移除
-const removeFromFavorites = (item, type) => {
-  if (type === 'cars') {
-    carFavorites.value = carFavorites.value.filter((i) => i.id !== item.id)
-    saveCarFavorites()
-  } else {
-    newsFavorites.value = newsFavorites.value.filter((i) => i.id !== item.id)
-    saveNewsFavorites()
+const removeFromFavorites = async (item, type) => {
+  try {
+    const targetType = type === 'cars' ? 'car' : 'news'
+    const res = await userFavoriteApi.removeFavorite(item.id, targetType)
+
+    if (res.code === '200') {
+      if (type === 'cars') {
+        carFavorites.value = carFavorites.value.filter((i) => i.id !== item.id)
+      } else {
+        newsFavorites.value = newsFavorites.value.filter((i) => i.id !== item.id)
+      }
+      ElMessage.success('已从收藏中移除')
+    } else {
+      ElMessage.error(res.msg || '移除收藏失败')
+    }
+  } catch (error) {
+    console.error('移除收藏失败:', error)
+    const errorMsg = error.response?.data?.msg || error.message || '移除收藏失败'
+    ElMessage.error(errorMsg)
   }
-  ElMessage.success('已从收藏中移除')
 }
 
 // 清空当前分类收藏
@@ -405,32 +398,38 @@ const confirmClearCurrent = () => {
     cancelButtonText: '取消',
     type: 'warning'
   })
-    .then(() => {
-      if (activeTab.value === 'cars') {
-        carFavorites.value = []
-        saveCarFavorites()
-      } else {
-        newsFavorites.value = []
-        saveNewsFavorites()
+    .then(async () => {
+      try {
+        const targetType = activeTab.value === 'cars' ? 'car' : 'news'
+        // 逐个删除所有收藏（或者后端提供批量删除接口）
+        const promises = currentFavorites.value.map((item) => userFavoriteApi.removeFavorite(item.id, targetType))
+        const results = await Promise.all(promises)
+
+        // 检查是否有失败
+        const failed = results.filter((r) => r.code !== '200')
+        if (failed.length > 0) {
+          ElMessage.warning(`部分删除失败，${failed.length}个未成功`)
+        } else {
+          if (activeTab.value === 'cars') {
+            carFavorites.value = []
+          } else {
+            newsFavorites.value = []
+          }
+          ElMessage.success(`已清空${typeText}`)
+        }
+      } catch (error) {
+        console.error('清空收藏失败:', error)
+        const errorMsg = error.response?.data?.msg || error.message || '清空收藏失败'
+        ElMessage.error(errorMsg)
       }
-      ElMessage.success(`已清空${typeText}`)
     })
     .catch(() => {})
-}
-
-// 保存收藏到 localStorage
-const saveCarFavorites = () => {
-  localStorage.setItem('user-car-favorites', JSON.stringify(carFavorites.value))
-}
-
-const saveNewsFavorites = () => {
-  localStorage.setItem('user-news-favorites', JSON.stringify(newsFavorites.value))
 }
 
 // 立即租车
 const quickRent = (car) => {
   ElMessage.success(`正在预订 ${car.brand} ${car.model}`)
-  router.push(`/front/order/${car.id}`)
+  router.push(`/front/car/${car.id}`)
 }
 
 // 查看详情
@@ -473,13 +472,26 @@ const handleCurrentChange = (val) => {
 }
 
 // 监听标签页变化重置分页
-watch(activeTab, () => {
-  currentPage.value = 1
-})
+// watch(activeTab, () => {
+//   currentPage.value = 1
+// })
+// 添加 watch 监听页码和标签页变化
+watch(
+  [activeTab, currentPage, pageSize],
+  () => {
+    // 确保用户已登录
+    if (checkLogin()) {
+      loadFavorites()
+    }
+  },
+  { immediate: false } // 不要立即执行，让 onMounted 处理首次加载
+)
 
-// 初始化
+// 处理首次加载
 onMounted(() => {
-  loadFavorites()
+  if (checkLogin()) {
+    loadFavorites()
+  }
 })
 </script>
 
@@ -1080,65 +1092,5 @@ onMounted(() => {
 
 .go-rental-btn:hover {
   background: #b28b4f;
-}
-
-/* 响应式 */
-@media (max-width: 1100px) {
-  .favorites-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
-  .news-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .recommend-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
-  .recommend-news-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-@media (max-width: 768px) {
-  .favorites-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .action-bar {
-    flex-direction: column;
-    gap: 12px;
-    align-items: flex-start;
-  }
-
-  .recommend-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .recommend-news-card {
-    flex-direction: column;
-  }
-
-  .recommend-news-card__img {
-    width: 100%;
-    height: 120px;
-  }
-}
-
-@media (max-width: 600px) {
-  .favorite-card__specs {
-    gap: 4px;
-  }
-
-  .favorite-card__footer {
-    flex-direction: column;
-    gap: 12px;
-    align-items: flex-start;
-  }
-
-  .rent-now-btn {
-    width: 100%;
-  }
 }
 </style>
