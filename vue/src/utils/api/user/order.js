@@ -49,7 +49,7 @@ export function cancelOrder(data) {
  * 支付订单
  * @param {Object} data 支付数据
  * @param {number} data.id 订单ID
- * @param {string} data.paymentMethod 支付方式(wechat/alipay/unionpay)
+ * @param {string} data.paymentMethod 支付方式(alipay)
  * @param {string} data.paymentPassword 支付密码
  */
 export function payOrder(data) {

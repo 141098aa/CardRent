@@ -72,7 +72,11 @@ const router = createRouter({
         { path: 'favorites', component: () => import('@/views/front/user/Favorites.vue') },
         { path: 'orders', component: () => import('@/views/front/user/Orders.vue'), meta: { requiresAuth: true } },
         { path: 'recharge', component: () => import('@/views/front/user/Recharge.vue') },
-        { path: 'set-payment-password', component: () => import('@/views/front/user/SetPaymentPassword.vue') }
+        { path: 'set-payment-password', component: () => import('@/views/front/user/SetPaymentPassword.vue') },
+        {
+          path: '/front/forget-payment-password',
+          component: () => import('@/views/front/user/ForgetPaymentPassword.vue')
+        }
       ]
     },
     { path: '/login', component: () => import('@/views/auth/Login.vue') },

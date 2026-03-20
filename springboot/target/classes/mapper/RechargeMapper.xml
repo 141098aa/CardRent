@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.mapper.RechargeMapper">
+
+    <resultMap id="BaseResultMap" type="com.example.entity.finance.RechargeRecord">
+        <id property="id" column="id"/>
+        <result property="rechargeNo" column="recharge_no"/>
+        <result property="userId" column="user_id"/>
+        <result property="userName" column="user_name"/>
+        <result property="amount" column="amount"/>
+        <result property="paymentMethod" column="payment_method"/>
+        <result property="status" column="status"/>
+        <result property="paymentTime" column="payment_time"/>
+        <result property="expireTime" column="expire_time"/>
+        <result property="canCancel" column="can_cancel"/>
+        <result property="remark" column="remark"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateTime" column="update_time"/>
+    </resultMap>
+
+    <insert id="insert" parameterType="com.example.entity.finance.RechargeRecord" useGeneratedKeys="true" keyProperty="id">
+        insert into recharge_record (
+            recharge_no, user_id, user_name, amount,
+            payment_method, status,expire_time, can_cancel, create_time
+        ) values (
+                     #{rechargeNo}, #{userId}, #{userName}, #{amount},
+                     #{paymentMethod}, #{status},#{expireTime}, #{canCancel}, now()
+                 )
+    </insert>
+
+    <update id="update" parameterType="com.example.entity.finance.RechargeRecord">
+        update recharge_record
+        set status = #{status},
+            payment_time = #{paymentTime},
+            remark = #{remark},
+            update_time = now()
+        where id = #{id}
+    </update>
+
+    <select id="selectByRechargeNo" resultMap="BaseResultMap">
+        select * from recharge_record where recharge_no = #{rechargeNo}
+    </select>
+
+    <select id="selectByUserId" resultMap="BaseResultMap">
+        select * from recharge_record
+        where user_id = #{userId}
+        <if test="status != null and status != ''">
+            and status = #{status}
+        </if>
+        order by create_time desc
+    </select>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        select * from recharge_record where id = #{id}
+    </select>
+
+    <!-- 查询过期的待支付充值记录 -->
+    <select id="selectExpiredPending" resultMap="BaseResultMap">
+        select * from recharge_record
+        where status = 'pending'
+          and expire_time &lt;= #{expireTime}
+          and can_cancel = 1
+    </select>
+
+</mapper>

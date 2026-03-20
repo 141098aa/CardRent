@@ -342,6 +342,8 @@
               <span>{{ getPriceNoteText }}</span>
             </div>
           </div>
+          <!-- 未选择时间时的提示 -->
+          <div v-else-if="rentDays === 0" class="price-tip-message">请选择取车和还车时间查看费用明细</div>
           <!-- 备注信息 -->
           <div class="remark-section" v-if="showRentDialog">
             <div class="remark-header">
@@ -358,8 +360,6 @@
               style="width: 40%"
               class="remark-input" />
           </div>
-          <!-- 未选择时间时的提示 -->
-          <div v-else-if="rentDays === 0" class="price-tip-message">请选择取车和还车时间查看费用明细</div>
         </div>
       </div>
       <template #footer>
@@ -370,6 +370,14 @@
       </template>
     </el-dialog>
   </div>
+  <!-- 使用支付弹窗组件 -->
+  <PaymentDialog
+    v-model:visible="showPaymentDialog"
+    :amount="dynamicPrice?.totalPrice || totalPrice"
+    :order-id="currentOrderId"
+    @pay="handlePayment"
+    @success="handlePaymentSuccess"
+    @cancel="handlePaymentCancel" />
 </template>
 
 <script setup>
@@ -391,13 +399,20 @@ import { getCarDetail, getHotRecommend, getRatingRecommend } from '@/utils/api/u
 import { createOrder, previewPrice } from '@/utils/api/user/order'
 import { getUserById } from '@/utils/api/user/profile'
 import { userFavoriteApi } from '@/utils/api'
+import PaymentDialog from '@/components/PaymentDialog.vue'
+import { userOrderApi } from '@/utils/api'
 
+const emit = defineEmits(['updateUser'])
 const route = useRoute()
 const router = useRouter()
 const loading = ref(false)
 const activeTab = ref('detail')
 const showRentDialog = ref(false)
 const rentLoading = ref(false)
+
+// 支付弹窗控制
+const showPaymentDialog = ref(false)
+const currentOrderId = ref(null)
 
 // 时间错误提示
 const timeError = ref(false)
@@ -526,7 +541,7 @@ const totalPrice = computed(() => {
   if (dynamicPrice.value) {
     return dynamicPrice.value.totalPrice
   }
-  const rent = rentalPrice.value
+  const rent = (car.value?.price || 0) * rentDays.value
   const insurance = insuranceTotal.value
   const deposit = car.value?.deposit || 0
   return rent + insurance + deposit
@@ -940,26 +955,72 @@ const confirmRent = async () => {
       remark: rentForm.remark || '' // 传递备注，默认为空字符串
     }
 
-    const res = await createOrder(orderData)
-
-    if (res.code === '200') {
-      ElMessage.success('订单创建成功，请尽快支付')
-      showRentDialog.value = false
-      // 清空表单
-      rentForm.pickupDate = ''
-      rentForm.returnDate = ''
-      rentForm.remark = ''
-      // 跳转到订单列表
-      router.push('/front/orders')
-    } else {
-      ElMessage.error(res.msg || '创建订单失败')
+    const createRes = await createOrder(orderData)
+    if (createRes.code !== '200') {
+      ElMessage.error(createRes.msg || '创建订单失败')
+      return
     }
+
+    // 保存订单ID，打开支付弹窗
+    currentOrderId.value = createRes.data.id
+    //showRentDialog.value = false
+    showPaymentDialog.value = true
   } catch (error) {
     console.error('创建订单失败:', error)
     ElMessage.error(error.message || '创建订单失败，请稍后重试')
   } finally {
     rentLoading.value = false
   }
+}
+// 支付处理
+const handlePayment = async (params) => {
+  try {
+    const res = await userOrderApi.payOrder({
+      id: params.orderId,
+      paymentMethod: 'wallet',
+      paymentPassword: params.paymentPassword
+    })
+
+    if (res.code === '200') {
+      // 更新用户信息
+      if (res.data) {
+        localStorage.setItem('system-user', JSON.stringify(res.data))
+        user.value = res.data
+      }
+    } else {
+      ElMessage.error(res.msg || '支付失败')
+    }
+  } catch (error) {
+    console.error('支付失败:', error)
+    ElMessage.error(error.message || '支付失败')
+  }
+}
+const refreshLockStatus = async () => {}
+const handlePaymentSuccess = () => {
+  // 支付成功后的处理
+  showPaymentDialog.value = false
+  showRentDialog.value = false // 关闭租车对话框
+
+  // 刷新用户余额
+  const userInfo = JSON.parse(localStorage.getItem('system-user') || '{}')
+  getUserById(userInfo.id).then((res) => {
+    if (res.code === '200') {
+      localStorage.setItem('system-user', JSON.stringify(res.data))
+      user.value = res.data
+    }
+  })
+
+  // 清空表单
+  rentForm.pickupDate = ''
+  rentForm.returnDate = ''
+  rentForm.remark = ''
+
+  router.push('/front/orders')
+}
+
+const handlePaymentCancel = () => {
+  // 支付取消后的处理
+  showPaymentDialog.value = false
 }
 // 添加用户登录检查
 const checkLogin = () => {

@@ -40,6 +40,7 @@
 import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import { paymentPasswordApi } from '@/utils/api'
 
 const router = useRouter()
 const loading = ref(false)
@@ -78,27 +79,37 @@ const rules = {
 
 // 提交设置
 const handleSubmit = () => {
-  formRef.value.validate((valid) => {
+  formRef.value.validate(async (valid) => {
     if (valid) {
       loading.value = true
 
-      // 获取当前用户信息
-      const user = JSON.parse(localStorage.getItem('system-user') || '{}')
+      try {
+        const res = await paymentPasswordApi.setPassword({
+          password: form.password
+        })
 
-      // 模拟API请求
-      setTimeout(() => {
-        // 保存支付密码
-        user.paymentPassword = form.password
-        localStorage.setItem('system-user', JSON.stringify(user))
+        if (res.code === '200') {
+          // 更新本地存储中的用户信息（支付密码状态）
+          const user = JSON.parse(localStorage.getItem('system-user') || '{}')
+          user.paymentPassword = form.password
+          localStorage.setItem('system-user', JSON.stringify(user))
 
+          ElMessage.success('支付密码设置成功')
+
+          // 返回上一页
+          setTimeout(() => {
+            router.back()
+          }, 1500)
+        } else {
+          ElMessage.error(res.msg || '设置失败')
+        }
+      } catch (error) {
+        console.error('设置支付密码失败:', error)
+        const errorMsg = error.response?.data?.msg || error.message || '设置失败'
+        ElMessage.error(errorMsg)
+      } finally {
         loading.value = false
-        ElMessage.success('支付密码设置成功')
-
-        // 返回上一页
-        setTimeout(() => {
-          router.back()
-        }, 1500)
-      }, 1000)
+      }
     }
   })
 }

@@ -1,8 +1,10 @@
 package com.example.controller.front;
 
 import com.example.common.Result;
+import com.example.entity.User;
 import com.example.entity.order.Order;
 import com.example.exception.CustomException;
+import com.example.mapper.UserMapper;
 import com.example.service.OrderService;
 import com.github.pagehelper.PageInfo;
 import jakarta.annotation.Resource;
@@ -21,6 +23,8 @@ public class FrontOrderController {
 
     @Resource
     private OrderService orderService;
+    @Resource
+    private UserMapper userMapper;
 
     /**
      * 创建订单
@@ -81,7 +85,9 @@ public class FrontOrderController {
         Integer userId = getCurrentUserId();
 
         orderService.payOrder(id, userId, paymentMethod, paymentPassword);
-        return Result.success();
+        // 返回更新后的用户信息
+        User updatedUser = userMapper.selectById(userId);
+        return Result.success(updatedUser);
     }
 
     /**

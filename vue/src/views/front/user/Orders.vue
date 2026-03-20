@@ -143,7 +143,6 @@
                 <el-button v-if="order.status === 'pending_pay'" type="primary" size="small" @click="handlePay(order)">
                   立即支付
                 </el-button>
-
                 <!-- 待取车 - 显示确认取车按钮 -->
                 <el-button
                   v-if="order.status === 'pending_pickup'"
@@ -349,6 +348,13 @@
       </div>
     </el-dialog>
   </div>
+  <!-- 支付弹窗 -->
+  <PaymentDialog
+    v-model:visible="showPaymentDialog"
+    :amount="currentOrder?.totalPrice"
+    :order-id="currentOrder?.id"
+    @pay="handlePayment"
+    @success="handlePaymentSuccess" />
 </template>
 
 <script setup>
@@ -356,6 +362,14 @@ import { ref, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { List, Clock, Van, CircleCheck, CircleClose, InfoFilled, QuestionFilled } from '@element-plus/icons-vue'
 import { getMyOrders, getOrderStats, cancelOrder, payOrder } from '@/utils/api/user/order'
+import PaymentDialog from '@/components/PaymentDialog.vue'
+import { getUserById } from '@/utils/api/user/profile'
+
+const emit = defineEmits(['updateUser'])
+// 支付弹窗控制
+const showPaymentDialog = ref(false)
+// 添加用户信息变量
+const user = ref(JSON.parse(localStorage.getItem('system-user') || '{}'))
 
 // 统计卡片点击处理
 const handleStatClick = (tabName) => {
@@ -559,7 +573,42 @@ const handleCurrentChange = (val) => {
   loadOrders()
   window.scrollTo({ top: 0, behavior: 'smooth' })
 }
+const handlePayAgain = (order) => {
+  currentOrder.value = order
+  showPaymentDialog.value = true
+}
+// 支付处理
+const handlePayment = async (params) => {
+  try {
+    const res = await payOrder({
+      id: params.orderId,
+      paymentMethod: 'wallet',
+      paymentPassword: params.paymentPassword
+    })
 
+    if (res.code === '200') {
+    } else {
+      ElMessage.error(res.msg || '支付失败')
+    }
+  } catch (error) {
+    console.error('支付失败:', error)
+    ElMessage.error(error.message || '支付失败')
+  }
+}
+// 支付成功后的处理
+const handlePaymentSuccess = () => {
+  showPaymentDialog.value = false
+  loadOrders() // 刷新订单列表
+  loadOrderStats() // 刷新统计
+  // 刷新用户余额
+  const userInfo = JSON.parse(localStorage.getItem('system-user') || '{}')
+  getUserById(userInfo.id).then((res) => {
+    if (res.code === '200') {
+      localStorage.setItem('system-user', JSON.stringify(res.data))
+      user.value = res.data
+    }
+  })
+}
 // 确认取车（实际应该是用户确认取车，通知后台）
 const handlePickup = (order) => {
   ElMessageBox.confirm('确认已取到车辆吗？', '确认取车', {
@@ -626,36 +675,10 @@ const handleCancel = (order) => {
     .catch(() => {})
 }
 
-// 支付订单
+// 支付订单 - 打开支付弹窗
 const handlePay = (order) => {
-  ElMessageBox.prompt('请输入支付密码', '支付确认', {
-    confirmButtonText: '确认支付',
-    cancelButtonText: '取消',
-    inputType: 'password',
-    inputPlaceholder: '请输入6位数字支付密码',
-    inputPattern: /^\d{6}$/,
-    inputErrorMessage: '支付密码必须为6位数字'
-  })
-    .then(async ({ value }) => {
-      try {
-        const res = await payOrder({
-          id: order.id,
-          paymentMethod: 'wallet',
-          paymentPassword: value
-        })
-        if (res.code === '200') {
-          ElMessage.success('支付成功')
-          loadOrders()
-          loadOrderStats()
-        } else {
-          ElMessage.error(res.msg || '支付失败')
-        }
-      } catch (error) {
-        console.error('支付失败:', error)
-        ElMessage.error(error.response?.data?.msg || error.message || '支付失败')
-      }
-    })
-    .catch(() => {})
+  currentOrder.value = order
+  showPaymentDialog.value = true
 }
 
 // 评价

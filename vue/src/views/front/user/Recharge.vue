@@ -114,12 +114,20 @@
               <div class="history-item__header">
                 <span class="history-item__amount">+¥{{ record.amount }}</span>
                 <span class="history-item__status" :class="record.status">
-                  {{ record.status === 'success' ? '成功' : record.status === 'pending' ? '处理中' : '失败' }}
+                  {{ getStatusText(record) }}
                 </span>
               </div>
               <div class="history-item__meta">
                 <span class="history-item__method">{{ record.method }}</span>
                 <span class="history-item__time">{{ record.time }}</span>
+              </div>
+              <!-- 添加操作按钮 -->
+              <div v-if="record.status === 'pending'" class="history-item__actions">
+                <el-button size="small" type="primary" @click.stop="handlePayAgain(record)">立即支付</el-button>
+                <el-button size="small" type="danger" @click.stop="handleCancelRecharge(record)">取消</el-button>
+              </div>
+              <div v-if="record.status === 'cancelled'" class="history-item__actions">
+                <el-button size="small" type="primary" @click.stop="handleRepay(record)">重新充值</el-button>
               </div>
             </div>
           </div>
@@ -174,6 +182,34 @@
             class="password-input"
             @keyup.enter="confirmRecharge" />
         </div>
+        <!-- 新增：备注输入区域 -->
+        <div class="remark-section">
+          <div class="remark-label">
+            <el-icon><Edit /></el-icon>
+            <span>备注信息</span>
+            <span class="remark-tip">（选填）</span>
+          </div>
+          <el-input
+            v-model="rechargeRemark"
+            type="textarea"
+            :rows="2"
+            placeholder="请输入备注信息，例如：充值说明、用途等"
+            maxlength="100"
+            show-word-limit
+            class="remark-input" />
+        </div>
+        <!-- 错误次数提示 -->
+        <div v-if="!lockStatus.locked && lockStatus.errorCount > 0" class="error-count-tip">
+          <el-alert
+            :title="`支付密码错误，还剩${5 - lockStatus.errorCount}次机会，连续错误5次将锁定20分钟`"
+            type="warning"
+            :closable="false"
+            show-icon />
+        </div>
+        <!-- 锁定提示 -->
+        <div v-if="lockStatus.locked" class="lock-tip">
+          <el-alert :title="lockMessage" type="error" :closable="false" show-icon />
+        </div>
 
         <!-- 密码相关操作 -->
         <div class="password-actions">
@@ -181,7 +217,7 @@
             <span class="no-password-tip">您还没有设置支付密码</span>
             <el-link type="primary" @click="goToSetPassword" underline="never">立即设置</el-link>
           </template>
-          <el-link v-else type="primary" @click="goToSetPassword" underline="never">忘记密码？</el-link>
+          <el-link type="primary" @click="goToForgetPassword" underline="never">忘记密码？</el-link>
         </div>
       </div>
 
@@ -193,7 +229,7 @@
             type="primary"
             @click="confirmRecharge"
             :loading="confirmLoading"
-            :disabled="!hasPaymentPassword"
+            :disabled="!hasPaymentPassword || lockStatus.locked"
             class="dialog-btn confirm-btn">
             确认支付
           </el-button>
@@ -227,6 +263,7 @@
 import { ref, reactive, computed, onMounted, nextTick, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { rechargeApi, paymentPasswordApi } from '@/utils/api'
 import {
   Wallet,
   Plus,
@@ -235,7 +272,8 @@ import {
   Platform,
   CreditCard,
   CircleCheckFilled,
-  Lock
+  Lock,
+  Edit
 } from '@element-plus/icons-vue'
 
 const router = useRouter()
@@ -251,7 +289,36 @@ const currentPage = ref(1)
 const pageSize = ref(5)
 const paymentPassword = ref('')
 const passwordError = ref('')
+const currentRecharge = ref(null) // 当前创建的充值记录
+const total = ref(0) // 充值记录总数
 
+const lockStatus = ref({ locked: false })
+const lockMessage = ref('')
+const rechargeRemark = ref('') // 备注信息
+
+const checkLockStatus = async () => {
+  try {
+    const res = await paymentPasswordApi.getLockStatus()
+    if (res.code === '200') {
+      lockStatus.value = res.data
+      if (res.data.locked) {
+        lockMessage.value = `支付密码错误次数过多，请在${res.data.remainingMinutes}分钟后重试`
+      } else if (res.data.errorCount > 0) {
+        // 显示剩余次数
+        const remainingAttempts = 5 - res.data.errorCount
+        lockMessage.value = `支付密码错误，还剩${remainingAttempts}次机会，连续错误5次将锁定20分钟`
+      }
+    }
+  } catch (error) {
+    console.error('获取锁定状态失败:', error)
+  }
+}
+
+// 监听标签页变化
+watch(activeHistoryTab, () => {
+  currentPage.value = 1
+  loadRechargeHistory()
+})
 // 监听路由变化，确保每次进入页面都滚动到顶部
 watch(
   () => route.path,
@@ -298,43 +365,7 @@ const selectedMethodName = computed(() => {
 })
 
 // 充值记录
-const rechargeHistory = ref([
-  {
-    id: 1,
-    amount: 100,
-    method: '微信支付',
-    status: 'success',
-    time: '2024-01-15 14:30:22'
-  },
-  {
-    id: 2,
-    amount: 200,
-    method: '支付宝',
-    status: 'success',
-    time: '2024-01-10 09:15:33'
-  },
-  {
-    id: 3,
-    amount: 50,
-    method: '银联支付',
-    status: 'pending',
-    time: '2024-01-05 16:45:18'
-  },
-  {
-    id: 4,
-    amount: 500,
-    method: '微信支付',
-    status: 'success',
-    time: '2023-12-28 11:20:45'
-  },
-  {
-    id: 5,
-    amount: 1000,
-    method: '支付宝',
-    status: 'failed',
-    time: '2023-12-20 19:50:12'
-  }
-])
+const rechargeHistory = ref([])
 
 // 过滤后的记录
 const filteredHistory = computed(() => {
@@ -381,7 +412,11 @@ const confirmCustomAmount = () => {
   selectedAmount.value = customAmount.value
   showCustomDialog.value = false
 }
-
+// 跳转到忘记密码页面
+const goToForgetPassword = () => {
+  showRechargeDialog.value = false
+  router.push('/front/forget-payment-password')
+}
 // 跳转到设置支付密码页面
 const goToSetPassword = () => {
   showRechargeDialog.value = false
@@ -389,7 +424,7 @@ const goToSetPassword = () => {
 }
 
 // 处理充值
-const handleRecharge = () => {
+const handleRecharge = async () => {
   // 先检查是否有支付密码
   if (!hasPaymentPassword.value) {
     ElMessageBox.confirm('您还没有设置支付密码，是否立即设置？', '提示', {
@@ -404,9 +439,34 @@ const handleRecharge = () => {
     return
   }
 
-  showRechargeDialog.value = true
-  paymentPassword.value = ''
-  passwordError.value = ''
+  // 先创建充值订单（不管是否被锁定，都要创建订单）
+  rechargeLoading.value = true
+  rechargeApi
+    .createRecharge({
+      amount: selectedAmount.value,
+      paymentMethod: selectedMethod.value
+    })
+    .then((res) => {
+      if (res.code === '200') {
+        // 创建成功，保存充值单号等信息
+        currentRecharge.value = res.data
+        showRechargeDialog.value = true
+        paymentPassword.value = ''
+        passwordError.value = ''
+
+        // 弹出对话框后，再获取锁定状态
+        checkLockStatus()
+      } else {
+        ElMessage.error(res.msg || '创建充值订单失败')
+      }
+    })
+    .catch((error) => {
+      const errorMsg = error.response?.data?.msg || error.message || '创建充值订单失败'
+      ElMessage.error(errorMsg)
+    })
+    .finally(() => {
+      rechargeLoading.value = false
+    })
 }
 
 // 取消充值
@@ -414,6 +474,7 @@ const cancelRecharge = () => {
   showRechargeDialog.value = false
   paymentPassword.value = ''
   passwordError.value = ''
+  rechargeRemark.value = '' // 清空备注
 }
 
 // 验证支付密码
@@ -426,57 +487,74 @@ const validatePaymentPassword = () => {
     ElMessage.warning('支付密码必须为6位数字')
     return false
   }
-  if (paymentPassword.value !== user.value.paymentPassword) {
-    ElMessage.error('支付密码错误')
-    return false
-  }
   return true
 }
 
 // 确认充值
 const confirmRecharge = async () => {
+  // 先检查是否被锁定
+  await checkLockStatus()
+  if (lockStatus.value.locked) {
+    ElMessage.warning(lockMessage.value)
+    return
+  }
+
   if (!validatePaymentPassword()) {
     return
   }
 
   confirmLoading.value = true
 
-  // 模拟支付成功
-  setTimeout(() => {
-    // 更新余额
-    const newBalance = (user.value.account || 0) + selectedAmount.value
-    user.value.account = newBalance
+  try {
+    const res = await rechargeApi.payRecharge({
+      rechargeNo: currentRecharge.value?.rechargeNo,
+      paymentPassword: paymentPassword.value,
+      remark: rechargeRemark.value
+    })
 
-    // 保存到localStorage
-    localStorage.setItem('system-user', JSON.stringify(user.value))
-
-    // 添加充值记录
-    const newRecord = {
-      id: rechargeHistory.value.length + 1,
-      amount: selectedAmount.value,
-      method: selectedMethodName.value,
-      status: 'success',
-      time: new Date().toLocaleString('zh-CN', { hour12: false })
+    if (res.code === '200') {
+      user.value = res.data.user
+      localStorage.setItem('system-user', JSON.stringify(res.data.user))
+      await loadRechargeHistory()
+      ElMessage.success(`充值成功！+¥${selectedAmount.value}`)
+      showRechargeDialog.value = false
+      ;((paymentPassword.value = ''), (rechargeRemark.value = '')) // 清空备注
+    } else {
+      ElMessage.error(res.msg || '支付失败')
+      await checkLockStatus()
+      if (!lockStatus.value.locked && lockStatus.value.errorCount > 0) {
+        const remainingAttempts = 5 - lockStatus.value.errorCount
+        ElMessage.warning(`支付密码错误，还剩${remainingAttempts}次机会`)
+      } else if (lockStatus.value.locked) {
+        ElMessage.warning(lockMessage.value)
+      }
     }
-    rechargeHistory.value.unshift(newRecord)
-
-    // 重置状态
+  } catch (error) {
+    console.error('支付失败:', error)
+    const errorMsg = error.response?.data?.msg || error.message || '支付失败'
+    ElMessage.error(errorMsg)
+    await checkLockStatus()
+    if (lockStatus.value.locked) {
+      ElMessage.warning(lockMessage.value)
+    } else if (lockStatus.value.errorCount > 0) {
+      const remainingAttempts = 5 - lockStatus.value.errorCount
+      ElMessage.warning(`支付密码错误，还剩${remainingAttempts}次机会`)
+    }
+  } finally {
     confirmLoading.value = false
-    showRechargeDialog.value = false
-    paymentPassword.value = ''
-
-    ElMessage.success(`充值成功！+¥${selectedAmount.value}`)
-  }, 1500)
+  }
 }
 
 // 分页变化
 const handleSizeChange = (val) => {
   pageSize.value = val
   currentPage.value = 1
+  loadRechargeHistory()
 }
 
 const handleCurrentChange = (val) => {
   currentPage.value = val
+  loadRechargeHistory()
   if (historyRef.value) {
     historyRef.value.scrollIntoView({ behavior: 'smooth' })
   }
@@ -489,14 +567,118 @@ watch(showRechargeDialog, (newVal) => {
     passwordError.value = ''
   }
 })
+// 格式化日期时间
+const formatDateTime = (datetime) => {
+  if (!datetime) return '--'
+  return datetime.replace('T', ' ').substring(0, 19)
+}
 
 // 加载充值记录
-const loadRechargeHistory = () => {
+const loadRechargeHistory = async () => {
   loadingHistory.value = true
-  // 模拟加载
-  setTimeout(() => {
+  try {
+    const params = {
+      pageNum: currentPage.value,
+      pageSize: pageSize.value,
+      status: activeHistoryTab.value === 'all' ? undefined : activeHistoryTab.value
+    }
+
+    const res = await rechargeApi.getRechargeList(params)
+    if (res.code === '200') {
+      // 后端返回的是 list，字段名需要映射
+      const list = (res.data?.list || []).map((item) => ({
+        id: item.id,
+        amount: item.amount,
+        method:
+          item.paymentMethod === 'wechat'
+            ? '微信支付'
+            : item.paymentMethod === 'alipay'
+              ? '支付宝'
+              : item.paymentMethod === 'unionpay'
+                ? '银联支付'
+                : item.paymentMethod,
+        status: item.status,
+        time: formatDateTime(item.createTime),
+        createTime: item.createTime,
+        expireTime: item.expireTime,
+        canCancel: item.canCancel,
+        rechargeNo: item.rechargeNo
+      }))
+      rechargeHistory.value = list
+      total.value = res.data?.total || 0
+    } else {
+      ElMessage.error(res.msg || '加载充值记录失败')
+    }
+  } catch (error) {
+    console.error('加载充值记录失败:', error)
+    const errorMsg = error.response?.data?.msg || error.message || '加载充值记录失败'
+    ElMessage.error(errorMsg)
+  } finally {
     loadingHistory.value = false
-  }, 500)
+  }
+}
+// 获取状态文本
+const getStatusText = (record) => {
+  const statusMap = {
+    success: '成功',
+    pending: '处理中',
+    failed: '失败',
+    cancelled: '已取消'
+  }
+  return statusMap[record.status] || record.status
+}
+
+// 立即支付
+const handlePayAgain = (record) => {
+  currentRecharge.value = record
+  showRechargeDialog.value = true
+  paymentPassword.value = ''
+  passwordError.value = ''
+}
+
+// 取消充值订单
+const handleCancelRecharge = async (record) => {
+  ElMessageBox.confirm('确定要取消此充值订单吗？', '提示', {
+    confirmButtonText: '确定',
+    cancelButtonText: '取消',
+    type: 'warning'
+  })
+    .then(async () => {
+      try {
+        const res = await rechargeApi.cancelRecharge({ rechargeNo: record.rechargeNo })
+        if (res.code === '200') {
+          ElMessage.success('充值订单已取消')
+          loadRechargeHistory()
+        } else {
+          ElMessage.error(res.msg || '取消失败')
+        }
+      } catch (error) {
+        console.error('取消充值订单失败:', error)
+        const errorMsg = error.response?.data?.msg || error.message || '取消失败'
+        ElMessage.error(errorMsg)
+      }
+    })
+    .catch(() => {})
+}
+
+// 重新充值
+const handleRepay = async (record) => {
+  try {
+    const res = await rechargeApi.repayRecharge({ rechargeNo: record.rechargeNo })
+    if (res.code === '200') {
+      currentRecharge.value = res.data
+      showRechargeDialog.value = true
+      paymentPassword.value = ''
+      passwordError.value = ''
+      loadRechargeHistory()
+    } else {
+      ElMessage.error(res.msg || '重新充值失败')
+    }
+  } catch (error) {
+    console.error('重新充值失败:', error)
+    const errorMsg = error.response?.data?.msg || error.message || '重新充值失败'
+    ElMessage.error(errorMsg)
+  }
 }
 </script>
 
@@ -1068,105 +1250,41 @@ const loadRechargeHistory = () => {
 .empty-state {
   padding: 40px 0;
 }
-
-/* 响应式 */
-@media (max-width: 900px) {
-  .balance-card {
-    flex-direction: column;
-    gap: 20px;
-    text-align: center;
-  }
-
-  .balance-card__header {
-    flex-direction: column;
-    text-align: center;
-  }
-
-  .amount-options {
-    grid-template-columns: repeat(3, 1fr);
-  }
-
-  .methods-grid {
-    grid-template-columns: 1fr;
-  }
+.error-count-tip {
+  margin-top: 8px;
 }
 
-@media (max-width: 600px) {
-  .balance-amount {
-    font-size: 28px;
-  }
-
-  .amount-number {
-    font-size: 36px;
-  }
-
-  .amount-options {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
-  .balance-card__actions {
-    flex-direction: column;
-    width: 100%;
-  }
-
-  .balance-card__actions .el-button {
-    width: 100%;
-    margin: 0;
-  }
-
-  .submit-recharge-btn {
-    min-width: 100%;
-  }
-
-  .recharge-history {
-    padding: 20px;
-  }
-
-  .history-item {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 12px;
-  }
-
-  .history-item__icon {
-    width: 40px;
-    height: 40px;
-    font-size: 20px;
-  }
-
-  /* 移动端对话框优化 */
-  .recharge-dialog :deep(.el-dialog) {
-    width: 90%;
-    margin: 0 auto;
-  }
-
-  .dialog-btn {
-    min-width: 80px;
-    height: 36px;
-    font-size: 14px;
-    padding: 0 16px;
-  }
+.lock-tip {
+  margin-top: 8px;
 }
 
-/* 超小屏幕优化 */
-@media (max-width: 380px) {
-  .amount-options {
-    grid-template-columns: 1fr;
-  }
+.remark-section {
+  margin: 16px 0;
+  text-align: left;
+}
 
-  .password-actions {
-    flex-direction: column;
-    gap: 8px;
-    align-items: flex-start;
-  }
+.remark-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 8px;
+  font-size: 13px;
+  color: #1e2a3a;
+}
 
-  .dialog-footer {
-    flex-direction: column-reverse;
-    gap: 8px;
-  }
+.remark-label .el-icon {
+  font-size: 14px;
+  color: #c8a165;
+}
 
-  .dialog-btn {
-    width: 100%;
-  }
+.remark-tip {
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.remark-input :deep(.el-textarea__inner) {
+  border-radius: 8px;
+  font-size: 13px;
+  resize: none;
 }
 </style>

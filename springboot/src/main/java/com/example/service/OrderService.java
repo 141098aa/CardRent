@@ -784,20 +784,22 @@ public class OrderService {
     }
 
     /**
-     * 支付订单
+     * 余额支付
      */
     @Transactional
     public void payOrder(Integer id, Integer userId, String paymentMethod, String paymentPassword) {
+        // 1. 查询订单
         Order order = orderMapper.selectUserOrderById(id, userId);
         if (order == null) {
             throw new CustomException("订单不存在或无权限操作");
         }
 
+        // 2. 检查订单状态
         if (!"pending_pay".equals(order.getStatus())) {
             throw new CustomException("该订单不是待付款状态");
         }
 
-        // 验证支付密码
+        // 3. 验证支付密码
         User user = userMapper.selectById(userId);
         if (user == null) {
             throw new CustomException("用户不存在");
@@ -811,22 +813,32 @@ public class OrderService {
         if (!user.getPaymentPassword().equals(paymentPassword)) {
             throw new CustomException("支付密码错误");
         }
-        // 保存旧状态用于日志
-        String oldStatus = order.getStatus();
 
-        // 支付成功后扣减库存
+        // 4. 检查余额是否足够
+        BigDecimal orderTotal = order.getTotalPrice();
+        if (user.getAccount() == null || user.getAccount().compareTo(orderTotal) < 0) {
+            throw new CustomException("余额不足，请先充值");
+        }
+
+        // 5. 扣减余额
+        BigDecimal newBalance = user.getAccount().subtract(orderTotal);
+        user.setAccount(newBalance);
+        userMapper.updateById(user);
+
+        // 6. 更新订单状态为待审核
+        String oldStatus = order.getStatus();
+        String newStatus = "pending_audit"; // 默认需要审核
+        orderMapper.payOrder(id, userId, paymentMethod);  // 这里会更新订单状态和支付方式
+
+        // 7. 扣减库存
         decreaseStock(order.getCarId(), 1);
 
-        // 支付成功后更新订单状态为待审核
-        String newStatus = "pending_audit"; // 默认需要审核
-        orderMapper.payOrder(id, userId, paymentMethod);
-
-        // 更新内存对象的状态
-        order.setStatus(newStatus);
-
-        // 记录日志
+        // 8. 记录日志
         orderMapper.insertLog(order.getId(), order.getOrderNo(), oldStatus, newStatus,
-                "user", String.valueOf(userId), "用户完成支付");
+                "user", String.valueOf(userId), "余额支付成功");
+
+        // 9. 可选：返回更新后的用户信息给前端
+        // 不需要返回值，但前端可以通过另外的接口获取最新用户信息
     }
 
     /**

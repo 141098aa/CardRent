@@ -146,7 +146,7 @@
     <!-- 支付订单 -->
     <update id="payOrder">
         update `order`
-        set status = 'pending_pickup',
+        set status = 'pending_audit',
             payment_method = #{paymentMethod},
             payment_time = now(),
             update_time = now()
