@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.mapper.TransactionRecordMapper">
+
+    <resultMap id="BaseResultMap" type="com.example.entity.finance.TransactionRecord">
+        <id property="id" column="id"/>
+        <result property="transactionNo" column="transaction_no"/>
+        <result property="userId" column="user_id"/>
+        <result property="userName" column="user_name"/>
+        <result property="type" column="type"/>
+        <result property="amount" column="amount"/>
+        <result property="balance" column="balance"/>
+        <result property="relatedId" column="related_id"/>
+        <result property="relatedNo" column="related_no"/>
+        <result property="remark" column="remark"/>
+        <result property="createTime" column="create_time"/>
+    </resultMap>
+
+    <insert id="insert" parameterType="com.example.entity.finance.TransactionRecord">
+        insert into transaction_record (
+            transaction_no, user_id, user_name, type,
+            amount, balance, related_id, related_no, remark, create_time
+        ) values (
+                     #{transactionNo}, #{userId}, #{userName}, #{type},
+                     #{amount}, #{balance}, #{relatedId}, #{relatedNo}, #{remark}, now()
+                 )
+    </insert>
+
+    <select id="selectPage" resultMap="BaseResultMap">
+        select * from transaction_record
+        <where>
+            <if test="keyword != null and keyword != ''">
+                and (user_name like concat('%', #{keyword}, '%')
+                or transaction_no like concat('%', #{keyword}, '%'))
+            </if>
+            <if test="type != null and type != ''">
+                and type = #{type}
+            </if>
+            <if test="startDate != null and startDate != ''">
+                and create_time &gt;= #{startDate}
+            </if>
+            <if test="endDate != null and endDate != ''">
+                and create_time &lt;= #{endDate}
+            </if>
+        </where>
+        order by create_time desc
+    </select>
+
+    <select id="getTotalIncome" resultType="java.math.BigDecimal">
+        select ifnull(sum(amount), 0) from transaction_record
+        where amount &gt; 0
+        <if test="startDate != null and startDate != ''">
+            and create_time &gt;= #{startDate}
+        </if>
+        <if test="endDate != null and endDate != ''">
+            and create_time &lt;= #{endDate}
+        </if>
+    </select>
+
+    <select id="getTotalExpense" resultType="java.math.BigDecimal">
+        select ifnull(sum(amount), 0) from transaction_record
+        where amount &lt; 0
+        <if test="startDate != null and startDate != ''">
+            and create_time &gt;= #{startDate}
+        </if>
+        <if test="endDate != null and endDate != ''">
+            and create_time &lt;= #{endDate}
+        </if>
+    </select>
+
+    <!-- 根据流水号查询 -->
+    <select id="selectByTransactionNo" resultMap="BaseResultMap">
+        select * from transaction_record
+        where transaction_no = #{transactionNo}
+    </select>
+
+    <!-- 按类型统计收支 - 使用 CDATA 包裹 SQL -->
+    <select id="getStatisticsByType" resultType="java.util.Map">
+        <![CDATA[
+        select
+            type,
+            sum(case when amount > 0 then amount else 0 end) as income,
+            sum(case when amount < 0 then -amount else 0 end) as expense,
+            count(*) as count
+        from transaction_record
+        ]]>
+        <where>
+            <if test="startDate != null and startDate != ''">
+                <![CDATA[ and create_time >= #{startDate} ]]>
+            </if>
+            <if test="endDate != null and endDate != ''">
+                <![CDATA[ and create_time <= #{endDate} ]]>
+            </if>
+        </where>
+        group by type
+        order by
+        case type
+        when 'recharge' then 1
+        when 'payment' then 2
+        when 'refund' then 3
+        when 'deposit_freeze' then 4
+        when 'deposit_unfreeze' then 5
+        when 'deposit_deduct' then 6
+        else 7
+        end
+    </select>
+    <select id="getTotalByType" resultType="java.math.BigDecimal">
+        select ifnull(sum(amount), 0) from transaction_record
+        where type = #{type}
+        <if test="startDate != null and startDate != ''">
+            and DATE(create_time) >= #{startDate}
+        </if>
+        <if test="endDate != null and endDate != ''">
+            and DATE(create_time) &lt;= #{endDate}
+        </if>
+    </select>
+
+</mapper>

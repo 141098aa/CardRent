@@ -80,47 +80,23 @@
             <span>订单管理</span>
           </el-menu-item>
 
-          <!-- 内容管理 -->
-          <el-sub-menu index="content" class="menu-submenu">
-            <template #title>
-              <el-icon><Document /></el-icon>
-              <span>内容管理</span>
-            </template>
-            <el-menu-item index="/manager/forum" class="submenu-item">
-              <el-icon><ChatDotRound /></el-icon>
-              <span>论坛管理</span>
-            </el-menu-item>
-            <el-menu-item index="/manager/news" class="submenu-item">
-              <el-icon><Reading /></el-icon>
-              <span>资讯管理</span>
-            </el-menu-item>
-            <el-menu-item index="/manager/guide" class="submenu-item">
-              <el-icon><InfoFilled /></el-icon>
-              <span>服务指南管理</span>
-            </el-menu-item>
-            <el-menu-item index="/manager/banner" class="submenu-item">
-              <el-icon><Picture /></el-icon>
-              <span>轮播图管理</span>
-            </el-menu-item>
-          </el-sub-menu>
-
           <!-- 财务管理 -->
           <el-sub-menu index="finance" class="menu-submenu">
             <template #title>
               <el-icon><Money /></el-icon>
               <span>财务管理</span>
             </template>
-            <el-menu-item index="/manager/recharge" class="submenu-item">
-              <el-icon><Wallet /></el-icon>
-              <span>充值记录</span>
-            </el-menu-item>
-            <el-menu-item index="/manager/payment" class="submenu-item">
-              <el-icon><CreditCard /></el-icon>
-              <span>支付记录</span>
+            <el-menu-item index="/manager/income-expense" class="submenu-item">
+              <el-icon><Document /></el-icon>
+              <span>资金流水</span>
             </el-menu-item>
             <el-menu-item index="/manager/refund" class="submenu-item">
               <el-icon><Refresh /></el-icon>
               <span>退款管理</span>
+            </el-menu-item>
+            <el-menu-item index="/manager/deposit" class="submenu-item">
+              <el-icon><Wallet /></el-icon>
+              <span>押金管理</span>
             </el-menu-item>
             <el-menu-item index="/manager/statistics" class="submenu-item">
               <el-icon><DataLine /></el-icon>
@@ -128,8 +104,24 @@
             </el-menu-item>
           </el-sub-menu>
 
+          <!-- 内容管理 -->
+          <el-sub-menu index="content" class="menu-submenu">
+            <template #title>
+              <el-icon><Document /></el-icon>
+              <span>内容管理</span>
+            </template>
+            <!-- <el-menu-item index="/manager/guide" class="submenu-item">
+              <el-icon><InfoFilled /></el-icon>
+              <span>服务指南管理</span>
+            </el-menu-item> -->
+            <el-menu-item index="/manager/banner" class="submenu-item">
+              <el-icon><Picture /></el-icon>
+              <span>轮播图管理</span>
+            </el-menu-item>
+          </el-sub-menu>
+
           <!-- 系统管理 -->
-          <el-sub-menu index="system" class="menu-submenu">
+          <!-- <el-sub-menu index="system" class="menu-submenu">
             <template #title>
               <el-icon><Setting /></el-icon>
               <span>系统管理</span>
@@ -146,7 +138,7 @@
               <el-icon><Folder /></el-icon>
               <span>数据备份</span>
             </el-menu-item>
-          </el-sub-menu>
+          </el-sub-menu> -->
 
           <!-- 个人信息 -->
           <el-menu-item index="/manager/person" class="menu-item">

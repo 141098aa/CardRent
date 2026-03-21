@@ -3,6 +3,7 @@ package com.example.service;
 import cn.hutool.json.ObjectMapper;
 import com.example.entity.User;
 import com.example.entity.car.Car;
+import com.example.entity.finance.RefundRequest;
 import com.example.entity.order.Order;
 import com.example.entity.order.RentalDiscount;
 import com.example.entity.order.SeasonFactor;
@@ -46,6 +47,11 @@ public class OrderService {
 
     @Resource
     private SystemConfigMapper systemConfigMapper;
+
+    @Resource
+    private TransactionService transactionService;
+    @Resource
+    private RefundService refundService;
     /**
      * 分页查询订单
      */
@@ -825,6 +831,18 @@ public class OrderService {
         user.setAccount(newBalance);
         userMapper.updateById(user);
 
+
+        // 6. 创建资金流水记录（支付支出，金额为负数）
+        transactionService.createTransaction(
+                userId,
+                user.getName(),
+                "payment",                        // 类型：支付
+                orderTotal.negate(),              // 金额为负数（支出）
+                newBalance,                       // 交易后余额
+                order.getId(),                    // 关联ID（订单ID）
+                order.getOrderNo(),               // 关联单号
+                "租车支付：" + order.getCarName() // 备注
+        );
         // 6. 更新订单状态为待审核
         String oldStatus = order.getStatus();
         String newStatus = "pending_audit"; // 默认需要审核
@@ -855,6 +873,8 @@ public class OrderService {
         if (!"pending_pickup".equals(order.getStatus())) {
             throw new CustomException("当前状态无法申请退款");
         }
+        // 创建退款申请记录
+        RefundRequest refund = refundService.createRefund(id, userId, reason);
 
         orderMapper.applyRefund(id, userId, reason);
         orderMapper.insertLog(order.getId(), order.getOrderNo(), order.getStatus(), "refunding",

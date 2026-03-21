@@ -45,4 +45,7 @@
             real_name_verified = #{realNameVerified},driver_license_verified = #{driverLicenseVerified},
             update_time = NOW() where id = #{id}
     </update>
+    <select id="getTotalBalance" resultType="java.math.BigDecimal">
+        select ifnull(sum(account), 0) from user
+    </select>
 </mapper>

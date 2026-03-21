@@ -368,6 +368,7 @@
               start-placeholder="开始日期"
               end-placeholder="结束日期"
               format="YYYY-MM-DD"
+              value-format="YYYY-MM-DD"
               style="width: 100%"
               :disabled-date="disabledDate" />
           </el-form-item>

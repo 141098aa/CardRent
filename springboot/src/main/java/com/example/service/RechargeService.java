@@ -30,6 +30,8 @@ public class RechargeService {
     private UserMapper userMapper;
     @Resource
     private PaymentPasswordService paymentPasswordService;
+    @Resource
+    private TransactionService transactionService;
 
     /**
      * 创建充值订单
@@ -123,6 +125,17 @@ public class RechargeService {
         record.setRemark(remark);
         rechargeMapper.update(record);
 
+        //资金流水记录
+        transactionService.createTransaction(
+                userId,                           // 用户ID
+                user.getName(),                   // 用户名
+                "recharge",                       // 类型：充值
+                record.getAmount(),               // 金额（正数）
+                newBalance,                       // 交易后余额
+                record.getId(),                   // 关联ID（充值记录ID）
+                record.getRechargeNo(),           // 关联单号
+                "用户充值"                         // 备注
+        );
         // 返回用户信息和充值记录
         result.put("user", user);
         result.put("rechargeRecord", record);

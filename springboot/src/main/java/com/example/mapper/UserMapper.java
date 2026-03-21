@@ -2,6 +2,7 @@ package com.example.mapper;
 
 import com.example.entity.User;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 public interface UserMapper {
@@ -16,4 +17,8 @@ public interface UserMapper {
     void updateById(User user);
 
     User selectById(Integer id);
+    /**
+     * 获取所有用户账户余额总和
+     */
+    BigDecimal getTotalBalance();
 }

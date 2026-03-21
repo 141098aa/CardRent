@@ -26,21 +26,21 @@ const router = createRouter({
         { path: 'order', component: () => import('@/views/manager/order/OrderList.vue') },
 
         // 内容管理
-        { path: 'forum', component: () => import('@/views/manager/content/Forum.vue') },
-        { path: 'news', component: () => import('@/views/manager/content/News.vue') },
-        { path: 'guide', component: () => import('@/views/manager/content/Guide.vue') },
-        { path: 'banner', component: () => import('@/views/manager/content/Banner.vue') },
+        // { path: 'forum', component: () => import('@/views/manager/content/Forum.vue') },
+        // { path: 'news', component: () => import('@/views/manager/content/News.vue') },
+        // { path: 'guide', component: () => import('@/views/manager/content/Guide.vue') },
+        // { path: 'banner', component: () => import('@/views/manager/content/Banner.vue') },
 
         // 财务管理
-        { path: 'recharge', component: () => import('@/views/manager/finance/Recharge.vue') },
-        { path: 'payment', component: () => import('@/views/manager/finance/Payment.vue') },
+        { path: 'income-expense', component: () => import('@/views/manager/finance/IncomeExpense.vue') },
         { path: 'refund', component: () => import('@/views/manager/finance/Refund.vue') },
+        { path: 'deposit', component: () => import('@/views/manager/finance/Deposit.vue') },
         { path: 'statistics', component: () => import('@/views/manager/finance/Statistics.vue') },
 
         // 系统管理
-        { path: 'settings', component: () => import('@/views/manager/system/Settings.vue') },
-        { path: 'log', component: () => import('@/views/manager/system/Log.vue') },
-        { path: 'backup', component: () => import('@/views/manager/system/Backup.vue') },
+        // { path: 'settings', component: () => import('@/views/manager/system/Settings.vue') },
+        // { path: 'log', component: () => import('@/views/manager/system/Log.vue') },
+        // { path: 'backup', component: () => import('@/views/manager/system/Backup.vue') },
 
         // 个人中心
         { path: 'person', component: () => import('@/views/manager/profile/Person.vue') },

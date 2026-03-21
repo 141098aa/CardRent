@@ -260,7 +260,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, nextTick, watch } from 'vue'
+import { ref, reactive, computed, onMounted, nextTick, watch, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { rechargeApi, paymentPasswordApi } from '@/utils/api'
@@ -295,6 +295,8 @@ const total = ref(0) // 充值记录总数
 const lockStatus = ref({ locked: false })
 const lockMessage = ref('')
 const rechargeRemark = ref('') // 备注信息
+
+let refreshTimer = null
 
 const checkLockStatus = async () => {
   try {
@@ -335,7 +337,55 @@ onMounted(() => {
   nextTick(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   })
+
+  // 添加定时器，每20秒静默刷新充值记录
+  refreshTimer = setInterval(() => {
+    // 只在当前页面可见时刷新
+    if (document.visibilityState === 'visible') {
+      silentRefresh() // 使用静默刷新
+    }
+  }, 20000)
 })
+
+// 静默刷新（不显示加载状态，不滚动）
+const silentRefresh = async () => {
+  try {
+    const params = {
+      pageNum: currentPage.value,
+      pageSize: pageSize.value,
+      status: activeHistoryTab.value === 'all' ? undefined : activeHistoryTab.value
+    }
+
+    const res = await rechargeApi.getRechargeList(params)
+    if (res.code === '200') {
+      const list = (res.data?.list || []).map((item) => ({
+        id: item.id,
+        amount: item.amount,
+        method:
+          item.paymentMethod === 'wechat'
+            ? '微信支付'
+            : item.paymentMethod === 'alipay'
+              ? '支付宝'
+              : item.paymentMethod === 'unionpay'
+                ? '银联支付'
+                : item.paymentMethod,
+        status: item.status,
+        time: formatDateTime(item.createTime),
+        createTime: item.createTime,
+        expireTime: item.expireTime,
+        canCancel: item.canCancel,
+        rechargeNo: item.rechargeNo
+      }))
+
+      // 直接替换数据，不触发加载动画
+      rechargeHistory.value = list
+      total.value = res.data?.total || 0
+    }
+  } catch (error) {
+    // 静默刷新失败不提示用户
+    console.error('静默刷新失败:', error)
+  }
+}
 
 // 用户信息
 const user = ref(JSON.parse(localStorage.getItem('system-user') || '{}'))

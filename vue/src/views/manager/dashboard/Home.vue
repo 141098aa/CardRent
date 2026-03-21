@@ -1,14 +1,14 @@
 <template>
   <div>
-    <p>123</p>
+    <p>系统首页</p>
   </div>
 </template>
 
 <script setup>
-import { reactive } from "vue";
-import request from "@/utils/request";
+import { reactive } from 'vue'
+import request from '@/utils/request'
 
 const data = reactive({
-  user: JSON.parse(localStorage.getItem("system-user") || "{}"),
-});
+  user: JSON.parse(localStorage.getItem('system-user') || '{}')
+})
 </script>

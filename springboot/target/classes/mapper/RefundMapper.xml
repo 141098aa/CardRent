@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.mapper.RefundMapper">
+
+    <resultMap id="BaseResultMap" type="com.example.entity.finance.RefundRequest">
+        <id property="id" column="id"/>
+        <result property="refundNo" column="refund_no"/>
+        <result property="orderId" column="order_id"/>
+        <result property="orderNo" column="order_no"/>
+        <result property="userId" column="user_id"/>
+        <result property="userName" column="user_name"/>
+        <result property="amount" column="amount"/>
+        <result property="reason" column="reason"/>
+        <result property="status" column="status"/>
+        <result property="auditRemark" column="audit_remark"/>
+        <result property="auditTime" column="audit_time"/>
+        <result property="completeTime" column="complete_time"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateTime" column="update_time"/>
+    </resultMap>
+
+    <insert id="insert" parameterType="com.example.entity.finance.RefundRequest">
+        insert into refund_request (
+            refund_no, order_id, order_no, user_id, user_name,
+            amount, reason, status, create_time
+        ) values (
+                     #{refundNo}, #{orderId}, #{orderNo}, #{userId}, #{userName},
+                     #{amount}, #{reason}, #{status}, now()
+                 )
+    </insert>
+
+    <update id="update" parameterType="com.example.entity.finance.RefundRequest">
+        update refund_request
+        set status = #{status},
+            audit_remark = #{auditRemark},
+            audit_time = #{auditTime},
+            complete_time = #{completeTime}
+        where id = #{id}
+    </update>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        select * from refund_request where id = #{id}
+    </select>
+
+    <select id="selectByOrderId" resultMap="BaseResultMap">
+        select * from refund_request where order_id = #{orderId}
+    </select>
+
+    <select id="selectPage" resultMap="BaseResultMap">
+        select * from refund_request
+        <where>
+            <if test="keyword != null and keyword != ''">
+                and (user_name like concat('%', #{keyword}, '%')
+                or order_no like concat('%', #{keyword}, '%'))
+            </if>
+            <if test="status != null and status != ''">
+                and status = #{status}
+            </if>
+            <if test="startDate != null and startDate != ''">
+                and create_time >= #{startDate}
+            </if>
+            <if test="endDate != null and endDate != ''">
+                and create_time &lt;= #{endDate}
+            </if>
+        </where>
+        order by create_time desc
+    </select>
+
+    <select id="countPending" resultType="int">
+        select count(*) from refund_request where status = 'pending'
+    </select>
+
+</mapper>

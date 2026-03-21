@@ -4,6 +4,7 @@ import * as userApi from './manager/user'
 import * as carApi from './manager/car'
 import * as orderApi from './manager/order'
 import * as authApi from './manager/auth'
+import * as financeApi from './manager/finance'
 import * as userProfileApi from './user/profile'
 import * as userAuthApi from './user/auth'
 import * as userCarApi from './user/car'
@@ -25,7 +26,8 @@ export {
   userFavoriteApi,
   rechargeApi,
   paymentPasswordApi,
-  userOrderApi
+  userOrderApi,
+  financeApi
 }
 
 // 默认导出
