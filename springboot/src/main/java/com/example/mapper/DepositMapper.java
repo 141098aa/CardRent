@@ -20,5 +20,12 @@ public interface DepositMapper {
                                    @Param("startDate") String startDate,
                                    @Param("endDate") String endDate);
 
-    BigDecimal getTotalByStatus(@Param("status") String status);
+    // 冻结中的押金（状态为 frozen）
+    BigDecimal getTotalFrozen();
+
+    // 已解冻的金额（实际退还用户的金额）
+    BigDecimal getTotalUnfrozen();
+
+    // 已扣除的金额
+    BigDecimal getTotalDeducted();
 }

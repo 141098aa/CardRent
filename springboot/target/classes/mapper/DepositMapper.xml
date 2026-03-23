@@ -66,8 +66,23 @@
         order by create_time desc
     </select>
 
-    <select id="getTotalByStatus" resultType="java.math.BigDecimal">
-        select ifnull(sum(amount), 0) from deposit_record where status = #{status}
+    <!-- 冻结中的押金（状态为 frozen） -->
+    <select id="getTotalFrozen" resultType="java.math.BigDecimal">
+        select ifnull(sum(amount), 0) from deposit_record where status = 'frozen'
+    </select>
+
+    <!-- 已解冻的金额（实际退还用户的金额） -->
+    <select id="getTotalUnfrozen" resultType="java.math.BigDecimal">
+        select ifnull(
+                       (select sum(amount) from deposit_record where status = 'unfrozen')
+                           +
+                       (select sum(amount - deduct_amount) from deposit_record where status = 'deducted')
+                   , 0)
+    </select>
+
+    <!-- 已扣除的金额 -->
+    <select id="getTotalDeducted" resultType="java.math.BigDecimal">
+        select ifnull(sum(deduct_amount), 0) from deposit_record where status = 'deducted'
     </select>
 
 </mapper>

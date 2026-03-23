@@ -152,6 +152,14 @@
                   确认取车
                 </el-button>
 
+                <!-- 待取车状态 - 显示申请退款按钮 -->
+                <el-button
+                  v-if="order.status === 'pending_pickup'"
+                  type="warning"
+                  size="small"
+                  @click="handleRefund(order)">
+                  申请退款
+                </el-button>
                 <!-- 进行中 - 显示申请还车按钮 -->
                 <el-button v-if="order.status === 'active'" type="success" size="small" @click="handleReturn(order)">
                   申请还车
@@ -163,6 +171,10 @@
                   size="small"
                   @click="handleCancel(order)">
                   取消订单
+                </el-button>
+                <!-- 退款中状态 - 显示提示 -->
+                <el-button v-if="order.status === 'refunding'" type="info" size="small" disabled>
+                  退款审核中
                 </el-button>
 
                 <!-- 已完成订单可以评价 -->
@@ -361,7 +373,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { List, Clock, Van, CircleCheck, CircleClose, InfoFilled, QuestionFilled } from '@element-plus/icons-vue'
-import { getMyOrders, getOrderStats, cancelOrder, payOrder } from '@/utils/api/user/order'
+import { getMyOrders, getOrderStats, cancelOrder, payOrder, refundOrder } from '@/utils/api/user/order'
 import PaymentDialog from '@/components/PaymentDialog.vue'
 import { getUserById } from '@/utils/api/user/profile'
 
@@ -548,7 +560,45 @@ const loadOrders = async () => {
     loading.value = false
   }
 }
-
+// 申请退款
+const handleRefund = (order) => {
+  ElMessageBox.prompt('请输入退款原因', '申请退款', {
+    confirmButtonText: '确定',
+    cancelButtonText: '取消',
+    inputPlaceholder: '请输入退款原因（必填）',
+    inputValidator: (value) => {
+      if (!value || value.trim() === '') {
+        return '请输入退款原因'
+      }
+      if (value.length > 200) {
+        return '退款原因不能超过200字'
+      }
+      return true
+    },
+    type: 'warning'
+  })
+    .then(async ({ value }) => {
+      try {
+        const res = await refundOrder({
+          id: order.id,
+          reason: value
+        })
+        if (res.code === '200') {
+          ElMessage.success('退款申请已提交，等待管理员审核')
+          // 刷新订单列表
+          loadOrders()
+          loadOrderStats()
+        } else {
+          ElMessage.error(res.msg || '申请失败')
+        }
+      } catch (error) {
+        console.error('申请退款失败:', error)
+        const errorMsg = error.response?.data?.msg || error.message || '申请失败'
+        ElMessage.error(errorMsg)
+      }
+    })
+    .catch(() => {})
+}
 // 分页订单
 const paginatedOrders = computed(() => {
   return orders.value

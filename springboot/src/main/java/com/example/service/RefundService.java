@@ -1,9 +1,11 @@
 package com.example.service;
 
 import com.example.entity.User;
+import com.example.entity.finance.DepositRecord;
 import com.example.entity.finance.RefundRequest;
 import com.example.entity.order.Order;
 import com.example.exception.CustomException;
+import com.example.mapper.DepositMapper;
 import com.example.mapper.OrderMapper;
 import com.example.mapper.RefundMapper;
 import com.example.mapper.UserMapper;
@@ -33,6 +35,8 @@ public class RefundService {
 
     @Resource
     private TransactionService transactionService;
+    @Resource
+    private DepositMapper depositMapper;
 
     /**
      * 创建退款申请（用户端调用）
@@ -133,21 +137,28 @@ public class RefundService {
                 user.getId(), user.getName(), "refund",
                 refund.getAmount(), newBalance,
                 refund.getId(), refund.getRefundNo(),
-                "订单退款：" + refund.getOrderNo()
-        );
-        // 4. 创建退款流水（收入，金额为正数）
-        transactionService.createTransaction(
-                user.getId(),
-                user.getName(),
-                "refund",                    // 类型：退款
-                refund.getAmount(),          // 金额为正数（收入）
-                newBalance,                  // 交易后余额
-                refund.getId(),
-                refund.getRefundNo(),
                 "订单退款：" + order.getOrderNo()
         );
 
-        //5. 更新退款状态为已完成
+        // 处理押金
+        // 查询押金记录
+        DepositRecord deposit = depositMapper.selectByOrderId(refund.getOrderId());
+        if (deposit != null && "frozen".equals(deposit.getStatus())) {
+            // 如果押金还是冻结状态，需要解冻
+            deposit.setStatus("unfrozen");
+            deposit.setUnfrozenTime(LocalDateTime.now());
+            depositMapper.update(deposit);
+
+            // 创建押金解冻流水（如果之前有押金冻结流水，这里需要解冻）
+            transactionService.createTransaction(
+                    user.getId(), user.getName(), "deposit_unfreeze",
+                    deposit.getAmount().negate(), newBalance,
+                    deposit.getId(), deposit.getOrderNo(),
+                    "退款订单押金解冻"
+            );
+        }
+
+        // 4. 更新退款状态为已完成
         refund.setStatus("completed");
         refund.setCompleteTime(LocalDateTime.now());
         refundMapper.update(refund);

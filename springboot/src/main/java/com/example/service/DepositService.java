@@ -75,22 +75,39 @@ public class DepositService {
             throw new CustomException("押金记录不存在");
         }
 
-        if (!"frozen".equals(deposit.getStatus())) {
-            throw new CustomException("该押金已被处理");
+        if ("unfrozen".equals(deposit.getStatus())) {
+            throw new CustomException("押金已解冻");
         }
+        if ("deducted".equals(deposit.getStatus())) {
+            // 已扣除的情况，不需要解冻
+            return;
+        }
+        if (!"frozen".equals(deposit.getStatus())) {
+            throw new CustomException("该押金状态异常，无法解冻");
+        }
+
+        // 更新用户余额，退还押金
+        User user = userMapper.selectById(userId);
+        if (user == null) {
+            throw new CustomException("用户不存在");
+        }
+
+        BigDecimal newBalance = user.getAccount().add(deposit.getAmount());
+        user.setAccount(newBalance);
+        userMapper.updateById(user);
+        // ======================================
 
         deposit.setStatus("unfrozen");
         deposit.setUnfrozenTime(LocalDateTime.now());
         depositMapper.update(deposit);
 
-        User user = userMapper.selectById(userId);
-
-        // 创建押金解冻流水
+        // 创建押金解冻流水（正数，用户余额增加）
         transactionService.createTransaction(
                 userId, user.getName(), "deposit_unfreeze",
-                deposit.getAmount().negate(), user.getAccount(),
+                deposit.getAmount(),  // 正数，用户余额增加
+                newBalance,
                 deposit.getId(), deposit.getOrderNo(),
-                "租车押金解冻"
+                "租车押金解冻退还"
         );
     }
 
@@ -104,6 +121,10 @@ public class DepositService {
             throw new CustomException("押金记录不存在");
         }
 
+        // 允许对已扣除的押金再次扣除？建议不允许
+        if ("deducted".equals(deposit.getStatus())) {
+            throw new CustomException("押金已被扣除，无法再次扣除");
+        }
         if (!"frozen".equals(deposit.getStatus())) {
             throw new CustomException("该押金已被处理，无法扣除");
         }
@@ -112,18 +133,41 @@ public class DepositService {
             throw new CustomException("扣除金额不能超过押金金额");
         }
 
-        // 更新押金记录
-        deposit.setStatus("deducted");
-        deposit.setDeductAmount(deductAmount);
-        deposit.setDeductReason(reason);
-        deposit.setDeductTime(LocalDateTime.now());
-        depositMapper.update(deposit);
+        User user = userMapper.selectById(deposit.getUserId());
 
-        // 如果只扣除部分，剩余金额需要解冻
-        BigDecimal remainingAmount = deposit.getAmount().subtract(deductAmount);
-        if (remainingAmount.compareTo(BigDecimal.ZERO) > 0) {
-            // 剩余金额解冻
-            User user = userMapper.selectById(deposit.getUserId());
+        // 如果扣除金额等于押金总额
+        if (deductAmount.compareTo(deposit.getAmount()) == 0) {
+            deposit.setStatus("deducted");
+            deposit.setDeductAmount(deductAmount);
+            deposit.setDeductReason(reason);
+            deposit.setDeductTime(LocalDateTime.now());
+            depositMapper.update(deposit);
+
+            // 创建押金扣除流水
+            transactionService.createTransaction(
+                    user.getId(), user.getName(), "deposit_deduct",
+                    deductAmount.negate(), user.getAccount(),
+                    deposit.getId(), deposit.getOrderNo(),
+                    "押金扣除：" + reason
+            );
+        } else {
+            // 部分扣除：先扣除，剩余金额解冻
+            deposit.setStatus("deducted");
+            deposit.setDeductAmount(deductAmount);
+            deposit.setDeductReason(reason);
+            deposit.setDeductTime(LocalDateTime.now());
+            depositMapper.update(deposit);
+
+            // 创建押金扣除流水
+            transactionService.createTransaction(
+                    user.getId(), user.getName(), "deposit_deduct",
+                    deductAmount.negate(), user.getAccount(),
+                    deposit.getId(), deposit.getOrderNo(),
+                    "押金扣除：" + reason
+            );
+
+            // 剩余金额解冻（更新用户余额）
+            BigDecimal remainingAmount = deposit.getAmount().subtract(deductAmount);
             BigDecimal newBalance = user.getAccount().add(remainingAmount);
             user.setAccount(newBalance);
             userMapper.updateById(user);
@@ -136,16 +180,6 @@ public class DepositService {
                     "押金扣除后剩余部分解冻"
             );
         }
-
-        User user = userMapper.selectById(deposit.getUserId());
-
-        // 创建押金扣除流水（负数支出）
-        transactionService.createTransaction(
-                user.getId(), user.getName(), "deposit_deduct",
-                deductAmount.negate(), user.getAccount(),
-                deposit.getId(), deposit.getOrderNo(),
-                "押金扣除：" + reason
-        );
     }
 
     /**
@@ -164,9 +198,9 @@ public class DepositService {
      */
     public Map<String, Object> getDepositStats() {
         Map<String, Object> stats = new HashMap<>();
-        stats.put("totalFrozen", depositMapper.getTotalByStatus("frozen"));
-        stats.put("totalUnfrozen", depositMapper.getTotalByStatus("unfrozen"));
-        stats.put("totalDeducted", depositMapper.getTotalByStatus("deducted"));
+        stats.put("totalFrozen", depositMapper.getTotalFrozen());
+        stats.put("totalUnfrozen", depositMapper.getTotalUnfrozen());
+        stats.put("totalDeducted", depositMapper.getTotalDeducted());
         return stats;
     }
 }

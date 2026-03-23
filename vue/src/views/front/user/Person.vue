@@ -531,7 +531,7 @@ const showRealNameDialog = ref(false)
 const showRealNameDetail = ref(false)
 const showDriverLicenseDialog = ref(false)
 const showLicenseDetail = ref(false)
-const showCreditOption = ref(true)
+const showCreditOption = ref(false)
 
 // 实名认证表单
 const realNameForm = reactive({

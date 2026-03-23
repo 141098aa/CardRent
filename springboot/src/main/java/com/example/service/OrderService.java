@@ -52,6 +52,8 @@ public class OrderService {
     private TransactionService transactionService;
     @Resource
     private RefundService refundService;
+    @Resource
+    private DepositService depositService;
     /**
      * 分页查询订单
      */
@@ -140,7 +142,10 @@ public class OrderService {
 
         String newStatus = "completed";
         orderMapper.updateStatus(id, newStatus, null, "admin");
-        orderMapper.insertLog(order.getId(),order.getOrderNo(), order.getStatus(), newStatus, "admin","admin", "管理员确认还车");
+        orderMapper.insertLog(order.getId(), order.getOrderNo(), order.getStatus(), newStatus, "admin", "admin", "管理员确认还车");
+
+        // 解冻押金（如果押金已被扣除，内部会跳过）
+        depositService.unfreezeDeposit(order.getId(), order.getUserId());
     }
 
     /**
@@ -843,19 +848,23 @@ public class OrderService {
                 order.getOrderNo(),               // 关联单号
                 "租车支付：" + order.getCarName() // 备注
         );
-        // 6. 更新订单状态为待审核
+        // 7. 更新订单状态为待审核
         String oldStatus = order.getStatus();
         String newStatus = "pending_audit"; // 默认需要审核
         orderMapper.payOrder(id, userId, paymentMethod);  // 这里会更新订单状态和支付方式
 
-        // 7. 扣减库存
+        // 8. 扣减库存
         decreaseStock(order.getCarId(), 1);
 
-        // 8. 记录日志
+        //冻结押金
+        // 调用押金服务，创建押金冻结记录
+        depositService.freezeDeposit(order.getId(), userId);
+
+        // 9. 记录日志
         orderMapper.insertLog(order.getId(), order.getOrderNo(), oldStatus, newStatus,
                 "user", String.valueOf(userId), "余额支付成功");
 
-        // 9. 可选：返回更新后的用户信息给前端
+        // 10. 可选：返回更新后的用户信息给前端
         // 不需要返回值，但前端可以通过另外的接口获取最新用户信息
     }
 
