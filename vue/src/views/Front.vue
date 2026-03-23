@@ -10,7 +10,7 @@
         </div>
       </div>
 
-      <!-- 导航菜单和搜索框 -->
+      <!-- 导航菜单 -->
       <div class="nav-wrapper">
         <div class="menu-container">
           <el-menu
@@ -31,6 +31,12 @@
 
       <!-- 用户区域 -->
       <div class="user-wrapper">
+        <!-- 站内信图标 -->
+        <div class="message-icon" @click="goToMessages">
+          <el-badge :value="unreadCount" :hidden="unreadCount === 0" class="badge">
+            <el-icon><Message /></el-icon>
+          </el-badge>
+        </div>
         <el-dropdown>
           <div class="user-container">
             <img
@@ -77,14 +83,15 @@
 </template>
 
 <script setup>
-import { reactive, ref } from 'vue'
+import { reactive, ref, onMounted } from 'vue'
 import router from '@/router'
 import { ElMessage } from 'element-plus'
 import Footer from '@/components/Footer.vue'
-import { Search, ArrowDown, User, Lock, SwitchButton, Star, Money, List } from '@element-plus/icons-vue'
+import { Search, ArrowDown, User, Lock, SwitchButton, Star, Money, List, Message } from '@element-plus/icons-vue'
+import { messageApi } from '@/utils/api'
 
 const searchText = ref('')
-
+const unreadCount = ref(0)
 const data = reactive({
   user: JSON.parse(localStorage.getItem('system-user') || '{}')
 })
@@ -95,14 +102,29 @@ const logout = () => {
   ElMessage.success('退出成功')
 }
 
-// const search = () => {
-//   if (searchText.value.trim()) {
-//     ElMessage.success(`搜索: ${searchText.value}`)
-//   }
-// }
+// 获取未读消息数量
+const getUnreadCount = async () => {
+  if (!data.user?.id) return
+  try {
+    const res = await messageApi.getUnreadCount()
+    if (res.code === '200') {
+      unreadCount.value = res.data
+    }
+  } catch (error) {
+    console.error('获取未读消息数量失败:', error)
+  }
+}
 
+// 跳转到消息列表页
+const goToMessages = () => {
+  router.push('/front/messages')
+}
+onMounted(() => {
+  getUnreadCount()
+})
 const updateUser = () => {
   data.user = JSON.parse(localStorage.getItem('system-user') || '{}')
+  getUnreadCount()
 }
 </script>
 
@@ -266,16 +288,18 @@ const updateUser = () => {
 
 /* 用户区域 */
 .user-wrapper {
-  flex: 0 0 240px;
-  min-width: 200px;
+  flex: 0 0 auto;
+  min-width: auto;
   text-align: right;
   padding-right: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
 }
 
 .user-container {
   display: inline-flex;
   align-items: center;
-  justify-content: flex-end;
   cursor: pointer;
   height: 44px;
   padding: 4px 12px 4px 8px;
@@ -372,20 +396,26 @@ const updateUser = () => {
 .el-dropdown:deep(.el-tooltip__trigger) {
   outline: none !important;
 }
+.message-icon {
+  cursor: pointer;
+  margin-right: 20px;
+  display: flex;
+  align-items: center;
+  font-size: 22px;
+  color: #4a5568;
+  transition: color 0.2s;
+}
 
-/* 小屏优化 */
-@media (max-width: 1100px) {
-  .logo-container {
-    padding-left: 16px;
-  }
-  .user-wrapper {
-    padding-right: 16px;
-  }
-  .logo-wrapper {
-    flex-basis: 220px;
-  }
-  .user-wrapper {
-    flex-basis: 210px;
-  }
+.message-icon:hover {
+  color: #409eff;
+}
+
+.message-icon .el-badge {
+  line-height: 1;
+}
+
+.user-wrapper {
+  display: flex;
+  align-items: center;
 }
 </style>

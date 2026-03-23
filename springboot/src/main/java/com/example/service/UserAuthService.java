@@ -25,6 +25,8 @@ public class UserAuthService {
 
     @Resource
     private UserMapper userMapper;
+    @Resource
+    private MessageService messageService;
 
     // 认证状态常量
     public static final Integer STATUS_PENDING = 0;  // 待审核
@@ -109,6 +111,25 @@ public class UserAuthService {
 
         // 更新用户表中的认证状态
         userAuthMapper.updateUserAuthStatus(auth.getUserId(), AUTH_TYPE_REAL_NAME, status);
+        // 发送站内信通知
+        if (status == STATUS_VERIFIED) {
+            messageService.sendMessage(
+                    auth.getUserId(),
+                    "实名认证通过",
+                    "恭喜您，实名认证已通过！",
+                    "system",
+                    "/front/person"
+            );
+        } else if (status == STATUS_FAILED) {
+            String failReason = remark != null ? remark : "信息有误，请重新上传清晰照片";
+            messageService.sendMessage(
+                    auth.getUserId(),
+                    "实名认证失败",
+                    String.format("您的实名认证未通过，原因：%s。请修改后重新提交。", failReason),
+                    "system",
+                    "/front/person?tab=auth&highlight=realName"
+            );
+        }
     }
 
     /**
@@ -144,6 +165,25 @@ public class UserAuthService {
 
         // 更新用户表中的认证状态
         userAuthMapper.updateUserAuthStatus(auth.getUserId(), AUTH_TYPE_DRIVER_LICENSE, status);
+        // 发送站内信通知
+        if (status == STATUS_VERIFIED) {
+            messageService.sendMessage(
+                    auth.getUserId(),
+                    "驾驶证认证通过",
+                    "恭喜您，驾驶证认证已通过！",
+                    "system",
+                    "/front/person"
+            );
+        } else if (status == STATUS_FAILED) {
+            String failReason = remark != null ? remark : "照片不清晰或信息不符，请重新上传";
+            messageService.sendMessage(
+                    auth.getUserId(),
+                    "驾驶证认证失败",
+                    String.format("您的驾驶证认证未通过，原因：%s。请修改后重新提交。", failReason),
+                    "system",
+                    "/front/person?tab=auth&highlight=driverLicense"
+            );
+        }
     }
 
     /**

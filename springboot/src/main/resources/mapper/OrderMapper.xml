@@ -19,7 +19,7 @@
                 and status in ('pending_pay', 'pending_audit')
             </if>
             <if test="statusGroup == 'active'">
-                and status in ('pending_pickup', 'active')
+                and status in ('pending_pickup', 'active', 'pending_return')
             </if>
             <if test="statusGroup == 'completed'">
                 and status in ('completed', 'cancelled', 'refunded')

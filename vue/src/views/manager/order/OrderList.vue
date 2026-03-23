@@ -115,8 +115,8 @@
 
         <el-table-column label="状态" width="100" align="center">
           <template #default="scope">
-            <el-tag :type="scope.row.statusType" size="small" effect="light">
-              {{ scope.row.statusText }}
+            <el-tag :type="getStatusType(scope.row.status)" size="small" effect="light">
+              {{ getStatusText(scope.row.status) }}
             </el-tag>
           </template>
         </el-table-column>
@@ -139,8 +139,8 @@
             </template>
 
             <!-- 进行中订单 -->
-            <template v-else-if="scope.row.status === 'active'">
-              <el-button type="success" size="small" @click="handleReturn(scope.row)">确认还车</el-button>
+            <template v-else-if="scope.row.status === 'active' || scope.row.status === 'pending_return'">
+              <el-button type="success" size="small" @click="handleReturn(scope.row)"> 确认还车 </el-button>
             </template>
 
             <!-- 可取消订单 -->
@@ -171,7 +171,9 @@
         <el-descriptions :column="2" border>
           <el-descriptions-item label="订单号">{{ currentOrder.orderNo }}</el-descriptions-item>
           <el-descriptions-item label="订单状态">
-            <el-tag :type="currentOrder.statusType" size="small">{{ currentOrder.statusText }}</el-tag>
+            <el-tag :type="getStatusType(currentOrder.status)" size="small">
+              {{ getStatusText(currentOrder.status) }}
+            </el-tag>
           </el-descriptions-item>
           <el-descriptions-item label="用户姓名">{{ currentOrder.userName }}</el-descriptions-item>
           <el-descriptions-item label="手机号">{{ currentOrder.userPhone }}</el-descriptions-item>
@@ -320,10 +322,45 @@ const load = () => {
       ElMessage.error(error.response?.data?.msg || '网络错误，请稍后重试')
     })
 }
-
+// 获取状态文本
+const getStatusText = (status) => {
+  const map = {
+    pending_pay: '待付款',
+    pending_audit: '待审核',
+    pending_pickup: '待取车',
+    active: '进行中',
+    pending_return: '待确认还车', // 添加这个
+    completed: '已完成',
+    cancelled: '已取消',
+    refunding: '退款中',
+    refunded: '已退款'
+  }
+  return map[status] || status
+}
+// 获取状态样式
+const getStatusType = (status) => {
+  const map = {
+    pending_pay: 'warning',
+    pending_audit: 'warning',
+    pending_pickup: 'primary',
+    active: 'primary',
+    pending_return: 'info',
+    completed: 'success',
+    cancelled: 'info',
+    refunding: 'danger',
+    refunded: 'info'
+  }
+  return map[status] || 'info'
+}
 // 切换状态
 const switchStatus = (status) => {
-  searchForm.statusGroup = status
+  const statusMap = {
+    all: 'all',
+    pending: 'pending', // 待处理：pending_pay + pending_audit
+    active: 'active', // 进行中：pending_pickup + active + pending_return
+    completed: 'completed' // 已完成：completed + cancelled
+  }
+  searchForm.statusGroup = statusMap[status] || status
   data.pageNum = 1
   load()
 }
@@ -420,7 +457,10 @@ const handlePickup = (row) => {
 
 // 确认还车
 const handleReturn = (row) => {
-  ElMessageBox.confirm('确认用户已归还车辆？', '提示', {
+  // 根据状态显示不同的确认文案
+  const confirmText = row.status === 'pending_return' ? '确认用户已归还车辆？' : '确认用户已归还车辆？'
+
+  ElMessageBox.confirm(confirmText, '提示', {
     type: 'info',
     confirmButtonText: '确认还车'
   })

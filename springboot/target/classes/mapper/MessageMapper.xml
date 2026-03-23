@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.mapper.MessageMapper">
+
+    <resultMap id="BaseResultMap" type="com.example.entity.user.Message">
+        <id property="id" column="id"/>
+        <result property="userId" column="user_id"/>
+        <result property="title" column="title"/>
+        <result property="content" column="content"/>
+        <result property="type" column="type"/>
+        <result property="isRead" column="is_read"/>
+        <result property="readTime" column="read_time"/>
+        <result property="link" column="link"/>
+        <result property="createTime" column="create_time"/>
+    </resultMap>
+
+    <insert id="insert" parameterType="com.example.entity.user.Message" useGeneratedKeys="true" keyProperty="id">
+        insert into message (user_id, title, content, type, link, create_time)
+        values (#{userId}, #{title}, #{content}, #{type}, #{link}, now())
+    </insert>
+
+    <select id="selectByUserId" resultMap="BaseResultMap">
+        select * from message
+        where user_id = #{userId}
+        order by create_time desc
+    </select>
+
+    <select id="selectById" resultMap="BaseResultMap">
+        select * from message where id = #{id}
+    </select>
+
+    <update id="updateReadStatus">
+        update message
+        set is_read = #{isRead}, read_time = #{readTime}
+        where id = #{id}
+    </update>
+
+    <select id="countUnread" resultType="int">
+        select count(*) from message
+        where user_id = #{userId} and is_read = 0
+    </select>
+
+    <delete id="deleteByUserId">
+        delete from message where user_id = #{userId}
+    </delete>
+
+</mapper>

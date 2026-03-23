@@ -164,7 +164,9 @@
                 <el-button v-if="order.status === 'active'" type="success" size="small" @click="handleReturn(order)">
                   申请还车
                 </el-button>
-
+                <el-button v-if="order.status === 'pending_return'" type="info" size="small" disabled>
+                  等待管理员确认还车
+                </el-button>
                 <!-- 待付款和待审核的订单可以取消 -->
                 <el-button
                   v-if="['pending_pay', 'pending_audit'].includes(order.status)"
@@ -373,7 +375,15 @@
 import { ref, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { List, Clock, Van, CircleCheck, CircleClose, InfoFilled, QuestionFilled } from '@element-plus/icons-vue'
-import { getMyOrders, getOrderStats, cancelOrder, payOrder, refundOrder } from '@/utils/api/user/order'
+import {
+  getMyOrders,
+  getOrderStats,
+  cancelOrder,
+  payOrder,
+  refundOrder,
+  confirmPickup,
+  applyReturn
+} from '@/utils/api/user/order'
 import PaymentDialog from '@/components/PaymentDialog.vue'
 import { getUserById } from '@/utils/api/user/profile'
 
@@ -414,6 +424,7 @@ const getStatusType = (status) => {
     pending_audit: 'warning',
     pending_pickup: 'primary',
     active: 'primary',
+    pending_return: 'info',
     completed: 'success',
     cancelled: 'info',
     refunding: 'danger',
@@ -429,6 +440,7 @@ const getStatusText = (status) => {
     pending_audit: '待审核',
     pending_pickup: '待取车',
     active: '进行中',
+    pending_return: '待确认还车',
     completed: '已完成',
     cancelled: '已取消',
     refunding: '退款中',
@@ -533,7 +545,7 @@ const loadOrders = async () => {
           params.status = 'pending_pay,pending_audit'
           break
         case 'ongoing':
-          params.status = 'pending_pickup,active'
+          params.status = 'pending_pickup,active,pending_return'
           break
         case 'completed':
           params.status = 'completed'
@@ -660,17 +672,28 @@ const handlePaymentSuccess = () => {
   })
 }
 // 确认取车（实际应该是用户确认取车，通知后台）
+// 确认取车
 const handlePickup = (order) => {
   ElMessageBox.confirm('确认已取到车辆吗？', '确认取车', {
     confirmButtonText: '确认',
     cancelButtonText: '取消',
     type: 'info'
   })
-    .then(() => {
-      // TODO: 调用确认取车API
-      ElMessage.success('取车成功，祝您用车愉快！')
-      loadOrders()
-      loadOrderStats()
+    .then(async () => {
+      try {
+        const res = await confirmPickup({ id: order.id })
+        if (res.code === '200') {
+          ElMessage.success('取车成功，祝您用车愉快！')
+          // 刷新订单列表
+          loadOrders()
+          loadOrderStats()
+        } else {
+          ElMessage.error(res.msg || '取车失败')
+        }
+      } catch (error) {
+        console.error('确认取车失败:', error)
+        ElMessage.error(error.response?.data?.msg || error.message || '取车失败')
+      }
     })
     .catch(() => {})
 }
@@ -682,11 +705,20 @@ const handleReturn = (order) => {
     cancelButtonText: '取消',
     type: 'info'
   })
-    .then(() => {
-      // TODO: 调用申请还车API
-      ElMessage.success('还车申请已提交，等待确认')
-      loadOrders()
-      loadOrderStats()
+    .then(async () => {
+      try {
+        const res = await applyReturn({ id: order.id })
+        if (res.code === '200') {
+          ElMessage.success('还车申请已提交，等待确认')
+          loadOrders()
+          loadOrderStats()
+        } else {
+          ElMessage.error(res.msg || '申请失败')
+        }
+      } catch (error) {
+        console.error('申请还车失败:', error)
+        ElMessage.error(error.response?.data?.msg || error.message || '申请失败')
+      }
     })
     .catch(() => {})
 }

@@ -37,7 +37,8 @@ public class RefundService {
     private TransactionService transactionService;
     @Resource
     private DepositMapper depositMapper;
-
+    @Resource
+    private MessageService messageService;
     /**
      * 创建退款申请（用户端调用）
      */
@@ -79,6 +80,7 @@ public class RefundService {
         return refund;
     }
 
+
     /**
      * 审核退款申请
      */
@@ -96,13 +98,13 @@ public class RefundService {
         LocalDateTime now = LocalDateTime.now();
 
         if ("approve".equals(action)) {
-            // 通过审核，执行退款
+            // 通过审核
             refund.setStatus("approved");
             refund.setAuditRemark(remark);
             refund.setAuditTime(now);
             refundMapper.update(refund);
 
-            // 执行退款操作
+            // 执行退款
             processRefund(refund);
 
         } else if ("reject".equals(action)) {
@@ -111,6 +113,34 @@ public class RefundService {
             refund.setAuditRemark(remark);
             refund.setAuditTime(now);
             refundMapper.update(refund);
+
+            // ===== 恢复订单状态 =====
+            Order order = orderMapper.selectById(refund.getOrderId());
+            if (order != null && "refunding".equals(order.getStatus())) {
+                // 恢复为退款前的状态（pending_pickup）
+                order.setStatus("pending_pickup");
+                orderMapper.updateOrderStatus(order.getId(), "pending_pickup", null, null, null);
+
+                // 记录订单日志
+                orderMapper.insertLog(
+                        order.getId(), order.getOrderNo(),
+                        "refunding", "pending_pickup",
+                        "admin", "system",
+                        "退款申请被拒绝，订单状态已恢复"
+                );
+            }
+
+            // 发送拒绝通知
+            String rejectReason = remark != null && !remark.isEmpty() ? remark : "不符合退款条件";
+            messageService.sendMessage(
+                    refund.getUserId(),
+                    "退款申请被拒绝",
+                    String.format("您的退款申请（订单号：%s）已被拒绝。原因：%s。",
+                            refund.getOrderNo(), rejectReason),
+                    "refund",
+                    "/front/orders"
+            );
+
         } else {
             throw new CustomException("操作类型错误");
         }
@@ -158,6 +188,15 @@ public class RefundService {
             );
         }
 
+        // 发送退款通知站内信
+        messageService.sendMessage(
+                refund.getUserId(),
+                "退款成功通知",
+                String.format("您的订单 %s 退款成功，退款金额 ¥%s 已返还至您的账户余额。",
+                        refund.getOrderNo(), refund.getAmount()),
+                "refund",
+                "/front/orders"
+        );
         // 4. 更新退款状态为已完成
         refund.setStatus("completed");
         refund.setCompleteTime(LocalDateTime.now());

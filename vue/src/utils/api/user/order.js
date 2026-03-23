@@ -83,3 +83,17 @@ export function getOrderStats() {
 export function previewPrice(params) {
   return request.get('/front/order/previewPrice', { params })
 }
+/**
+ * 用户确认取车
+ * @param {Object} data 确认数据
+ * @param {number} data.id 订单ID
+ */
+export function confirmPickup(data) {
+  return request.put('/front/order/userConfirmPickup', data)
+}
+/**
+ * 用户申请还车
+ */
+export function applyReturn(data) {
+  return request.put('/front/order/applyReturn', data)
+}

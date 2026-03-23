@@ -25,7 +25,7 @@ export function audit(data) {
  * 确认取车
  */
 export function confirmPickup(data) {
-  return request.put('/manager/order/confirmPickup', data)
+  return request.put('/manager/order/adminConfirmPickup', data)
 }
 
 /**

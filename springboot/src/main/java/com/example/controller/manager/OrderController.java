@@ -54,12 +54,14 @@ public class OrderController {
     }
 
     /**
-     * 确认取车
+     * 管理员确认取车（在管理端使用）
      */
-    @PutMapping("/confirmPickup")
-    public Result confirmPickup(@RequestBody Map<String, Object> params) {
+    @PutMapping("/adminConfirmPickup")
+    public Result adminConfirmPickup(@RequestBody Map<String, Object> params) {
         Integer id = (Integer) params.get("id");
-        orderService.confirmPickup(id);
+        // 管理员权限验证（可以加注解或从token判断角色）
+
+        orderService.adminConfirmPickup(id);
         return Result.success();
     }
 

@@ -12,6 +12,7 @@ import * as userFavoriteApi from './user/favorite'
 import * as rechargeApi from './user/recharge'
 import * as paymentPasswordApi from './user/paymentPassword'
 import * as userOrderApi from './user/order'
+import * as messageApi from './user/message'
 
 // 统一导出
 export {
@@ -27,7 +28,8 @@ export {
   rechargeApi,
   paymentPasswordApi,
   userOrderApi,
-  financeApi
+  financeApi,
+  messageApi
 }
 
 // 默认导出

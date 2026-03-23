@@ -109,7 +109,22 @@ public class DepositService {
                 deposit.getId(), deposit.getOrderNo(),
                 "租车押金解冻退还"
         );
+        // 发送押金解冻通知
+        messageService.sendMessage(
+                userId,
+                "押金解冻通知",
+                String.format("您的订单 %s 已完成，押金 ¥%s 已解冻，可查看余额。",
+                        deposit.getOrderNo(), deposit.getAmount()),
+                "deposit",
+                "/front/orders"
+        );
     }
+
+    /**
+     * 扣除押金（违章/损坏赔偿时人工操作）
+     */
+    @Resource
+    private MessageService messageService;
 
     /**
      * 扣除押金（违章/损坏赔偿时人工操作）
@@ -121,10 +136,6 @@ public class DepositService {
             throw new CustomException("押金记录不存在");
         }
 
-        // 允许对已扣除的押金再次扣除？建议不允许
-        if ("deducted".equals(deposit.getStatus())) {
-            throw new CustomException("押金已被扣除，无法再次扣除");
-        }
         if (!"frozen".equals(deposit.getStatus())) {
             throw new CustomException("该押金已被处理，无法扣除");
         }
@@ -150,8 +161,19 @@ public class DepositService {
                     deposit.getId(), deposit.getOrderNo(),
                     "押金扣除：" + reason
             );
+
+            // 发送押金扣除通知
+            messageService.sendMessage(
+                    user.getId(),
+                    "押金扣除通知",
+                    String.format("您的订单 %s 因【%s】被扣除押金 ¥%s。",
+                            deposit.getOrderNo(), reason, deductAmount),
+                    "deposit",
+                    "/front/orders"
+            );
+
         } else {
-            // 部分扣除：先扣除，剩余金额解冻
+            // 部分扣除
             deposit.setStatus("deducted");
             deposit.setDeductAmount(deductAmount);
             deposit.setDeductReason(reason);
@@ -166,7 +188,7 @@ public class DepositService {
                     "押金扣除：" + reason
             );
 
-            // 剩余金额解冻（更新用户余额）
+            // 剩余金额解冻
             BigDecimal remainingAmount = deposit.getAmount().subtract(deductAmount);
             BigDecimal newBalance = user.getAccount().add(remainingAmount);
             user.setAccount(newBalance);
@@ -178,6 +200,16 @@ public class DepositService {
                     remainingAmount, newBalance,
                     deposit.getId(), deposit.getOrderNo(),
                     "押金扣除后剩余部分解冻"
+            );
+
+            // 发送押金扣除通知（包含剩余金额信息）
+            messageService.sendMessage(
+                    user.getId(),
+                    "押金扣除通知",
+                    String.format("您的订单 %s 因【%s】被扣除押金 ¥%s，剩余押金 ¥%s 已退还至您的账户余额。",
+                            deposit.getOrderNo(), reason, deductAmount, remainingAmount),
+                    "deposit",
+                    "/front/orders"
             );
         }
     }

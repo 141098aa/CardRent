@@ -76,6 +76,11 @@ const router = createRouter({
         {
           path: '/front/forget-payment-password',
           component: () => import('@/views/front/user/ForgetPaymentPassword.vue')
+        },
+        {
+          path: '/front/messages',
+          component: () => import('@/views/front/user/Messages.vue'),
+          meta: { title: '站内信' }
         }
       ]
     },

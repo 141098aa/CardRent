@@ -54,6 +54,8 @@ public class OrderService {
     private RefundService refundService;
     @Resource
     private DepositService depositService;
+    @Resource
+    private MessageService messageService;
     /**
      * 分页查询订单
      */
@@ -92,6 +94,14 @@ public class OrderService {
         String newStatus;
         if ("approve".equals(action)) {
             newStatus = "pending_pickup"; // 审核通过，变为待取车
+            // 发送审核通过通知
+            messageService.sendMessage(
+                    order.getUserId(),
+                    "订单审核通过",
+                    String.format("您的订单 %s 已审核通过，请按时取车。", order.getOrderNo()),
+                    "order",
+                    "/front/orders"
+            );
         } else if ("reject".equals(action)) {
             newStatus = "cancelled"; // 审核拒绝，变为已取消
             // 审核拒绝，恢复库存
@@ -108,10 +118,10 @@ public class OrderService {
     }
 
     /**
-     * 确认取车
+     * 管理员确认取车
      */
     @Transactional
-    public void confirmPickup(Integer id) {
+    public void adminConfirmPickup(Integer id) {
         Order order = orderMapper.selectById(id);
         if (order == null) {
             throw new CustomException("订单不存在");
@@ -123,7 +133,53 @@ public class OrderService {
 
         String newStatus = "active";
         orderMapper.updateStatus(id, newStatus, null, "admin");
-        orderMapper.insertLog(order.getId(),order.getOrderNo(), order.getStatus(), newStatus, "admin", "admin","管理员确认取车");
+        orderMapper.insertLog(
+                order.getId(), order.getOrderNo(),
+                order.getStatus(), newStatus,
+                "admin", "admin",
+                "管理员确认取车"
+        );
+
+        // 发送取车成功通知
+        messageService.sendMessage(
+                order.getUserId(),
+                "取车成功通知",
+                String.format("您的订单 %s 已由管理员确认取车，祝您用车愉快！", order.getOrderNo()),
+                "order",
+                "/front/orders"
+        );
+    }
+    /**
+     * 用户确认取车
+     */
+    @Transactional
+    public void userConfirmPickup(Integer id, Integer userId) {
+        Order order = orderMapper.selectUserOrderById(id, userId);
+        if (order == null) {
+            throw new CustomException("订单不存在或无权限操作");
+        }
+
+        if (!"pending_pickup".equals(order.getStatus())) {
+            throw new CustomException("该订单不是待取车状态");
+        }
+
+        String newStatus = "active";
+        orderMapper.updateStatus(id, newStatus, null, "user");
+        orderMapper.insertLog(
+                order.getId(), order.getOrderNo(),
+                order.getStatus(), newStatus,
+                "user", String.valueOf(userId),
+                "用户确认取车"
+        );
+
+        // 发送取车成功通知
+        messageService.sendMessage(
+                userId,
+                "取车成功通知",
+                String.format("您的订单 %s 已成功取车，祝您用车愉快！", order.getOrderNo()),
+                "order",
+                "/front/orders"
+        );
     }
 
     /**
@@ -136,18 +192,64 @@ public class OrderService {
             throw new CustomException("订单不存在");
         }
 
-        if (!"active".equals(order.getStatus())) {
+        // 支持 active 和 pending_return 两种状态
+        if (!"active".equals(order.getStatus()) && !"pending_return".equals(order.getStatus())) {
             throw new CustomException("该订单不是进行中状态");
         }
 
         String newStatus = "completed";
         orderMapper.updateStatus(id, newStatus, null, "admin");
-        orderMapper.insertLog(order.getId(), order.getOrderNo(), order.getStatus(), newStatus, "admin", "admin", "管理员确认还车");
+        orderMapper.insertLog(order.getId(), order.getOrderNo(), order.getStatus(), newStatus,
+                "admin", "admin", "管理员确认还车");
 
-        // 解冻押金（如果押金已被扣除，内部会跳过）
+        // 解冻押金
         depositService.unfreezeDeposit(order.getId(), order.getUserId());
+
+        // 发送还车成功通知
+        messageService.sendMessage(
+                order.getUserId(),
+                "还车成功通知",
+                String.format("您的订单 %s 已成功还车，感谢您的使用！", order.getOrderNo()),
+                "order",
+                "/front/orders"
+        );
     }
 
+    /**
+     * 用户申请还车
+     */
+    @Transactional
+    public void applyReturn(Integer id) {
+        Order order = orderMapper.selectById(id);
+        if (order == null) {
+            throw new CustomException("订单不存在");
+        }
+
+        // 只有进行中状态可以申请还车
+        if (!"active".equals(order.getStatus())) {
+            throw new CustomException("当前状态无法申请还车");
+        }
+
+        String newStatus = "pending_return";
+        String oldStatus = order.getStatus();
+
+        orderMapper.updateStatus(id, newStatus, null, "user");
+        orderMapper.insertLog(
+                order.getId(), order.getOrderNo(),
+                oldStatus, newStatus,
+                "user", String.valueOf(order.getUserId()),
+                "用户申请还车"
+        );
+
+        // 发送申请还车通知
+        messageService.sendMessage(
+                order.getUserId(),
+                "还车申请已提交",
+                String.format("您的订单 %s 还车申请已提交，等待管理员确认。", order.getOrderNo()),
+                "order",
+                "/front/orders"
+        );
+    }
     /**
      * 取消订单
      */
@@ -863,6 +965,15 @@ public class OrderService {
         // 9. 记录日志
         orderMapper.insertLog(order.getId(), order.getOrderNo(), oldStatus, newStatus,
                 "user", String.valueOf(userId), "余额支付成功");
+        //10.发送通知给用户
+        messageService.sendMessage(
+                userId,
+                "支付成功通知",
+                String.format("您的订单 %s 已支付成功，金额 ¥%s，请等待管理员审核。",
+                        order.getOrderNo(), order.getTotalPrice()),
+                "order",
+                "/front/orders"
+        );
 
         // 10. 可选：返回更新后的用户信息给前端
         // 不需要返回值，但前端可以通过另外的接口获取最新用户信息
@@ -931,8 +1042,10 @@ public class OrderService {
                     break;
                 case "pending_pickup":
                 case "active":
+                case "pending_return":
                     ongoingCount += count;
                     break;
+
                 case "completed":
                     completedCount += count;
                     break;

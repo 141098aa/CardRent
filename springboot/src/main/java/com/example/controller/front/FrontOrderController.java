@@ -112,7 +112,40 @@ public class FrontOrderController {
         Map<String, Object> stats = orderService.getUserOrderStats(userId);
         return Result.success(stats);
     }
+    /**
+     * 用户确认取车
+     */
+    @PutMapping("/userConfirmPickup")
+    public Result userConfirmPickup(@RequestBody Map<String, Object> params) {
+        Integer id = (Integer) params.get("id");
+        Integer userId = getCurrentUserId();
 
+        // 验证订单属于当前用户
+        Order order = orderService.selectUserOrderById(id, userId);
+        if (order == null) {
+            throw new CustomException("订单不存在或无权限操作");
+        }
+
+        orderService.userConfirmPickup(id, userId);
+        return Result.success();
+    }
+    /**
+     * 用户申请还车
+     */
+    @PutMapping("/applyReturn")
+    public Result applyReturn(@RequestBody Map<String, Object> params) {
+        Integer id = (Integer) params.get("id");
+        Integer userId = getCurrentUserId();
+
+        // 验证订单属于当前用户
+        Order order = orderService.selectUserOrderById(id, userId);
+        if (order == null) {
+            throw new CustomException("订单不存在或无权限操作");
+        }
+
+        orderService.applyReturn(id);
+        return Result.success();
+    }
     /**
      * 价格预览（计算动态价格）
      */
