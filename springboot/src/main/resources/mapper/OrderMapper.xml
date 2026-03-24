@@ -181,4 +181,48 @@
         </if>
         order by create_time desc
     </select>
+
+    <!-- 获取用户历史租车的车辆ID列表 -->
+    <select id="selectUserCarIds" resultType="java.lang.Integer">
+        select distinct car_id
+        from `order`
+        where user_id = #{userId}
+          and status in ('completed', 'active', 'pending_pickup')
+    </select>
+
+    <!-- 获取用户最喜欢的品牌 -->
+    <select id="selectUserFavoriteBrand" resultType="java.lang.Integer">
+        select c.brand_id
+        from `order` o
+                 left join car c on o.car_id = c.id
+        where o.user_id = #{userId}
+          and o.status in ('completed', 'active', 'pending_pickup')
+        group by c.brand_id
+        order by count(*) desc
+            limit 1
+    </select>
+
+    <!-- 获取用户最喜欢的能源类型 -->
+    <select id="selectUserFavoriteEnergy" resultType="java.lang.String">
+        select c.energy
+        from `order` o
+                 left join car c on o.car_id = c.id
+        where o.user_id = #{userId}
+          and o.status in ('completed', 'active', 'pending_pickup')
+        group by c.energy
+        order by count(*) desc
+            limit 1
+    </select>
+
+    <!-- 获取用户最喜欢的座位数 -->
+    <select id="selectUserFavoriteSeats" resultType="java.lang.Integer">
+        select c.seats
+        from `order` o
+                 left join car c on o.car_id = c.id
+        where o.user_id = #{userId}
+          and o.status in ('completed', 'active', 'pending_pickup')
+        group by c.seats
+        order by count(*) desc
+            limit 1
+    </select>
 </mapper>

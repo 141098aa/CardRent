@@ -60,4 +60,10 @@ public class MessageService {
             }
         }
     }
+    /**
+     * 清空用户所有消息
+     */
+    public void clearAllMessages(Integer userId) {
+        messageMapper.deleteByUserId(userId);
+    }
 }

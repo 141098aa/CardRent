@@ -244,17 +244,39 @@ const hotCars = ref([])
 // 评分推荐车辆
 const ratingCars = ref([])
 
-// 加载热门推荐（基于评价数量）
+// 加载热门推荐-基于用户历史行为（订单+收藏）
 const loadHotRecommend = async () => {
   loading.value = true
   try {
-    const res = await userCarApi.getHotRecommend(4)
+    const userStr = localStorage.getItem('system-user')
+    const userInfo = userStr ? JSON.parse(userStr) : {}
+
+    let res
+    if (userInfo.id) {
+      res = await userCarApi.getPersonalizedRecommend(4)
+      // 如果个性化推荐返回空，降级到热门推荐
+      if (res.code === '200' && (!res.data || res.data.length === 0)) {
+        console.log('个性化推荐为空，降级到热门推荐')
+        res = await userCarApi.getHotRecommend(4)
+      }
+    } else {
+      res = await userCarApi.getHotRecommend(4)
+    }
+
     if (res.code === '200') {
       hotCars.value = res.data || []
     }
   } catch (error) {
-    console.error('加载热门推荐失败:', error)
-    ElMessage.error('加载热门推荐失败')
+    console.error('加载推荐失败:', error)
+    // 降级到热门推荐
+    try {
+      const fallbackRes = await userCarApi.getHotRecommend(4)
+      if (fallbackRes.code === '200') {
+        hotCars.value = fallbackRes.data || []
+      }
+    } catch (e) {
+      console.error('降级推荐也失败:', e)
+    }
   } finally {
     loading.value = false
   }

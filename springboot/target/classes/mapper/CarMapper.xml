@@ -359,4 +359,81 @@
         update car set stock = stock + #{count} where id = #{id}
     </update>
 
+    <!-- 个性化推荐 -->
+    <select id="selectPersonalizedRecommend" resultMap="CarResultMap">
+        select
+        c.id, c.brand_id, c.model, c.seats, c.gear, c.energy, c.year,
+        c.price, c.rating, c.review_count, c.tag, c.image, c.features,
+        b.name as brand_name
+        from car c
+        left join car_brand b on c.brand_id = b.id
+        where c.status = 'available'
+        and c.id not in
+        <foreach collection="excludeIds" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+        <if test="brandId != null">
+            and c.brand_id = #{brandId}
+        </if>
+        <if test="energy != null and energy != ''">
+            and c.energy = #{energy}
+        </if>
+        <if test="seats != null">
+            and c.seats = #{seats}
+        </if>
+        order by c.rating desc, c.review_count desc
+        limit #{limit}
+    </select>
+
+    <!-- 相似车型推荐（基于收藏） -->
+    <select id="selectSimilarCars" resultMap="CarResultMap">
+        select
+        c.id, c.brand_id, c.model, c.seats, c.gear, c.energy, c.year,
+        c.price, c.rating, c.review_count, c.tag, c.image, c.features,
+        b.name as brand_name
+        from car c
+        left join car_brand b on c.brand_id = b.id
+        where c.status = 'available'
+        and c.id not in
+        <foreach collection="excludeIds" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+        <if test="brandId != null">
+            and c.brand_id = #{brandId}
+        </if>
+        <if test="energy != null and energy != ''">
+            and c.energy = #{energy}
+        </if>
+        <if test="seats != null">
+            and c.seats = #{seats}
+        </if>
+        order by c.rating desc, c.review_count desc
+        limit #{limit}
+    </select>
+
+    <!-- 基于偏好推荐 -->
+    <select id="selectPreferenceRecommend" resultMap="CarResultMap">
+        select
+        c.id, c.brand_id, c.model, c.seats, c.gear, c.energy, c.year,
+        c.price, c.rating, c.review_count, c.tag, c.image, c.features,
+        b.name as brand_name
+        from car c
+        left join car_brand b on c.brand_id = b.id
+        where c.status = 'available'
+        and c.id not in
+        <foreach collection="excludeIds" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+        <if test="brandId != null">
+            and c.brand_id = #{brandId}
+        </if>
+        <if test="energy != null and energy != ''">
+            and c.energy = #{energy}
+        </if>
+        <if test="seats != null">
+            and c.seats = #{seats}
+        </if>
+        order by c.rating desc, c.review_count desc
+        limit #{limit}
+    </select>
 </mapper>

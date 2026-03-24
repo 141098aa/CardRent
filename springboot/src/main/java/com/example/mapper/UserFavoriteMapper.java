@@ -54,4 +54,6 @@ public interface UserFavoriteMapper {
      */
     void deleteByUserAndType(@Param("userId") Integer userId,
                              @Param("targetType") String targetType);
+    // 获取用户收藏的车辆ID列表
+    List<Integer> selectUserFavoriteCarIds(@Param("userId") Integer userId);
 }

@@ -5,6 +5,8 @@ import com.example.entity.car.CarBrand;
 import com.example.entity.car.CarCategory;
 import com.example.exception.CustomException;
 import com.example.mapper.CarMapper;
+import com.example.mapper.OrderMapper;
+import com.example.mapper.UserFavoriteMapper;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
 import jakarta.annotation.Resource;
@@ -12,8 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @Service
 public class CarService {
@@ -22,6 +23,10 @@ public class CarService {
 
     @Resource
     private CarMapper carMapper;
+    @Resource
+    private OrderMapper orderMapper;
+    @Resource
+    private UserFavoriteMapper favoriteMapper;
 
     // 车辆管理服务
 
@@ -264,7 +269,92 @@ public class CarService {
     public List<Car> selectRatingRecommend(Integer limit) {
         return carMapper.selectRatingRecommend(limit);
     }
+    /**
+     * 个性化推荐 - 组合用户行为（订单+收藏）
+     */
+    public List<Car> selectPersonalizedRecommend(Integer userId, Integer limit) {
+        // 1. 获取用户历史订单和收藏
+        List<Integer> userCarIds = orderMapper.selectUserCarIds(userId);
+        List<Integer> favoriteCarIds = favoriteMapper.selectUserFavoriteCarIds(userId);
 
+        // 合并已租过的车辆ID（排除）
+        Set<Integer> excludeSet = new HashSet<>();
+        excludeSet.addAll(userCarIds);
+        excludeSet.addAll(favoriteCarIds);
+
+        // 2. 没有历史记录，返回热门推荐
+        if (excludeSet.isEmpty()) {
+            return selectHotRecommend(limit);
+        }
+
+        List<Integer> excludeIds = new ArrayList<>(excludeSet);
+
+        // 3. 计算用户偏好
+        Map<String, Object> preferences = analyzeUserPreference(userId, userCarIds, favoriteCarIds);
+
+        // 4. 基于偏好推荐
+        return carMapper.selectPreferenceRecommend(
+                (Integer) preferences.get("brandId"),
+                (String) preferences.get("energy"),
+                (Integer) preferences.get("seats"),
+                excludeIds,
+                limit
+        );
+    }
+
+    /**
+     * 分析用户偏好
+     */
+    private Map<String, Object> analyzeUserPreference(Integer userId,
+                                                      List<Integer> userCarIds,
+                                                      List<Integer> favoriteCarIds) {
+        // 统计品牌偏好
+        Map<Integer, Integer> brandCount = new HashMap<>();
+        Map<String, Integer> energyCount = new HashMap<>();
+        Map<Integer, Integer> seatsCount = new HashMap<>();
+
+        // 统计历史订单中的车辆
+        for (Integer carId : userCarIds) {
+            Car car = carMapper.selectById(carId);
+            if (car != null) {
+                brandCount.merge(car.getBrandId(), 1, Integer::sum);
+                energyCount.merge(car.getEnergy(), 1, Integer::sum);
+                seatsCount.merge(car.getSeats(), 1, Integer::sum);
+            }
+        }
+
+        // 统计收藏中的车辆（权重更高）
+        for (Integer carId : favoriteCarIds) {
+            Car car = carMapper.selectById(carId);
+            if (car != null) {
+                brandCount.merge(car.getBrandId(), 2, Integer::sum);
+                energyCount.merge(car.getEnergy(), 2, Integer::sum);
+                seatsCount.merge(car.getSeats(), 2, Integer::sum);
+            }
+        }
+
+        // 取出现次数最多的
+        Integer favoriteBrandId = brandCount.entrySet().stream()
+                .max(Map.Entry.comparingByValue())
+                .map(Map.Entry::getKey)
+                .orElse(null);
+
+        String favoriteEnergy = energyCount.entrySet().stream()
+                .max(Map.Entry.comparingByValue())
+                .map(Map.Entry::getKey)
+                .orElse(null);
+
+        Integer favoriteSeats = seatsCount.entrySet().stream()
+                .max(Map.Entry.comparingByValue())
+                .map(Map.Entry::getKey)
+                .orElse(null);
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("brandId", favoriteBrandId);
+        result.put("energy", favoriteEnergy);
+        result.put("seats", favoriteSeats);
+        return result;
+    }
     /**
      * 获取所有品牌列表
      */

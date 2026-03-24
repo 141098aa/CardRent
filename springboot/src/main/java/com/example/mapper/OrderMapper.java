@@ -73,4 +73,15 @@ public interface OrderMapper {
 
     List<Order> selectUserOrdersByStatusList(@Param("userId") Integer userId,
                                              @Param("statusList") List<String> statusList);
+    // 获取用户历史租车的车辆ID列表
+    List<Integer> selectUserCarIds(@Param("userId") Integer userId);
+
+    // 获取用户最喜欢的品牌
+    Integer selectUserFavoriteBrand(@Param("userId") Integer userId);
+
+    // 获取用户最喜欢的能源类型
+    String selectUserFavoriteEnergy(@Param("userId") Integer userId);
+
+    // 获取用户最喜欢的座位数
+    Integer selectUserFavoriteSeats(@Param("userId") Integer userId);
 }

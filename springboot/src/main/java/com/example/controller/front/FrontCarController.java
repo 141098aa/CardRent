@@ -2,10 +2,14 @@ package com.example.controller.front;
 
 import com.example.common.Result;
 import com.example.entity.car.Car;
+import com.example.exception.CustomException;
 import com.example.service.CarService;
 import com.github.pagehelper.PageInfo;
 import jakarta.annotation.Resource;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
 import java.util.List;
 import java.util.Map;
@@ -89,5 +93,26 @@ public class FrontCarController {
     public Result getSeats() {
         List<Integer> seats = carService.selectSeatsList();
         return Result.success(seats);
+    }
+    /**
+     * 个性化推荐 - 基于用户历史行为（订单+收藏）
+     */
+    @GetMapping("/recommend/personalized")
+    public Result personalizedRecommend(@RequestParam(defaultValue = "4") Integer limit) {
+        Integer userId = getCurrentUserId();
+        List<Car> cars = carService.selectPersonalizedRecommend(userId, limit);
+        return Result.success(cars);
+    }
+    private Integer getCurrentUserId() {
+        HttpServletRequest request = ((ServletRequestAttributes) RequestContextHolder.getRequestAttributes()).getRequest();
+        String userIdStr = request.getHeader("X-User-Id");
+        if (userIdStr == null || userIdStr.isEmpty()) {
+            throw new CustomException("未登录");
+        }
+        try {
+            return Integer.parseInt(userIdStr);
+        } catch (NumberFormatException e) {
+            throw new CustomException("无效的用户ID");
+        }
     }
 }

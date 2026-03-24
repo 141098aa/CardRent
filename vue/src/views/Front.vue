@@ -21,8 +21,6 @@
             mode="horizontal">
             <el-menu-item index="/front/home"> 首页 </el-menu-item>
             <el-menu-item index="/front/rental">在线租车</el-menu-item>
-            <!-- <el-menu-item index="/front/forum">租车论坛</el-menu-item> -->
-            <el-menu-item index="/front/news">租车资讯</el-menu-item>
             <el-menu-item index="/front/guide">服务指南</el-menu-item>
             <el-menu-item index="/front/about">关于我们</el-menu-item>
           </el-menu>

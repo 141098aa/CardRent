@@ -78,4 +78,12 @@
           and target_type = #{targetType}
     </delete>
 
+    <!-- 获取用户收藏的车辆ID列表 -->
+    <select id="selectUserFavoriteCarIds" resultType="java.lang.Integer">
+        select target_id
+        from user_favorite
+        where user_id = #{userId}
+          and target_type = 'car'
+    </select>
+
 </mapper>

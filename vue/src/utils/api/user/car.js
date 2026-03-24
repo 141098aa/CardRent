@@ -31,7 +31,7 @@ export function getCarDetail(id) {
 }
 
 /**
- * 热门推荐 - 基于评价数量
+ * 热门推荐 - 基于评价数量（新用户或未登录时使用）
  * @param {number} limit 返回数量
  */
 export function getHotRecommend(limit = 4) {
@@ -44,6 +44,13 @@ export function getHotRecommend(limit = 4) {
  */
 export function getRatingRecommend(limit = 4) {
   return request.get('/front/car/recommend/rating', { params: { limit } })
+}
+/**
+ * 个性化推荐 - 基于用户历史行为（订单+收藏）
+ * @param {number} limit 返回数量
+ */
+export function getPersonalizedRecommend(limit = 4) {
+  return request.get('/front/car/recommend/personalized', { params: { limit } })
 }
 
 /**

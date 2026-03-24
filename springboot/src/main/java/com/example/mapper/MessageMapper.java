@@ -19,6 +19,8 @@ public interface MessageMapper {
                           @Param("readTime") LocalDateTime readTime);
 
     int countUnread(@Param("userId") Integer userId);
-
+    /**
+     * 清空用户所有消息
+     */
     void deleteByUserId(@Param("userId") Integer userId);
 }

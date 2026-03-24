@@ -111,4 +111,25 @@ public interface CarMapper {
     void increaseStock(@Param("id") Integer id, @Param("count") Integer count);
 
     List<Car> selectByIds(List<Integer> carIds);
+    // 个性化推荐
+    List<Car> selectPersonalizedRecommend(@Param("userId") Integer userId,
+                                          @Param("brandId") Integer brandId,
+                                          @Param("energy") String energy,
+                                          @Param("seats") Integer seats,
+                                          @Param("excludeIds") List<Integer> excludeIds,
+                                          @Param("limit") Integer limit);
+
+    // 相似车型推荐
+    List<Car> selectSimilarCars(@Param("brandId") Integer brandId,
+                                @Param("energy") String energy,
+                                @Param("seats") Integer seats,
+                                @Param("excludeIds") List<Integer> excludeIds,
+                                @Param("limit") Integer limit);
+
+    // 基于偏好推荐
+    List<Car> selectPreferenceRecommend(@Param("brandId") Integer brandId,
+                                        @Param("energy") String energy,
+                                        @Param("seats") Integer seats,
+                                        @Param("excludeIds") List<Integer> excludeIds,
+                                        @Param("limit") Integer limit);
 }

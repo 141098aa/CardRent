@@ -69,4 +69,13 @@ public class MessageController {
             throw new CustomException("无效的用户ID");
         }
     }
+    /**
+     * 清空所有消息
+     */
+    @DeleteMapping("/clear")
+    public Result clearAll() {
+        Integer userId = getCurrentUserId();
+        messageService.clearAllMessages(userId);
+        return Result.success();
+    }
 }
