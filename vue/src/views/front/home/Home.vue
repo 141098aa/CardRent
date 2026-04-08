@@ -168,7 +168,7 @@
     <div class="section">
       <div class="section__row">
         <div class="section__title">租车须知</div>
-        <el-button link type="primary" @click="go('/front/news')">
+        <el-button link type="primary" @click="go('/front/guide')">
           更多资讯 <el-icon><ArrowRight /></el-icon>
         </el-button>
       </div>
@@ -232,7 +232,7 @@ const hotCars = ref([])
 // 评分推荐车辆
 const ratingCars = ref([])
 
-// 加载热门推荐-基于用户历史行为（订单+收藏）
+// 加载热门推荐-基于用户历史行为的个性化推荐（订单+收藏）
 const loadHotRecommend = async () => {
   loading.value = true
   try {
@@ -242,7 +242,7 @@ const loadHotRecommend = async () => {
     let res
     if (userInfo.id) {
       res = await userCarApi.getPersonalizedRecommend(4)
-      // 如果个性化推荐返回空，降级到热门推荐
+      // 如果个性化推荐返回空，降级到基于品牌和分类排序的热门推荐
       if (res.code === '200' && (!res.data || res.data.length === 0)) {
         console.log('个性化推荐为空，降级到热门推荐')
         res = await userCarApi.getHotRecommend(4)

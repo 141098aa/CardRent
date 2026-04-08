@@ -288,16 +288,23 @@
         where c.id = #{id}
     </select>
 
-    <!-- 热门推荐 - 基于评价数量 -->
+    <!-- 热门推荐  -->
     <select id="selectHotRecommend" resultMap="CarResultMap">
         select
             c.id, c.brand_id, c.model, c.seats, c.gear, c.energy, c.year,
             c.price, c.rating, c.review_count, c.tag, c.image, c.features,
-            b.name as brand_name
+            b.name as brand_name,
+            MIN(cat.sort_order) as category_sort
         from car c
                  left join car_brand b on c.brand_id = b.id
+                 left join car_category_relation rel on c.id = rel.car_id
+                 left join car_category cat on rel.category_id = cat.id
         where c.status = 'available'
-        order by c.review_count desc, c.rating desc
+        group by c.id
+        order by
+            b.sort_order asc,
+            MIN(cat.sort_order) asc,
+            c.create_time desc
             limit #{limit}
     </select>
 

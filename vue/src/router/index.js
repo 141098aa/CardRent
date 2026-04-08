@@ -3,7 +3,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
-    { path: '/', redirect: '/login' },
+    { path: '/', redirect: '/front/home' },
     {
       path: '/manager',
       component: () => import('@/views/Layout.vue'),
@@ -58,26 +58,50 @@ const router = createRouter({
         { path: 'news/:id', component: () => import('@/views/front/news/NewsDetail.vue'), meta: { title: '资讯详情' } },
 
         //  个人中心
-        { path: 'person', component: () => import('@/views/front/user/Person.vue') },
-        { path: 'password', component: () => import('@/views/front/user/Password.vue') },
-        { path: 'favorites', component: () => import('@/views/front/user/Favorites.vue') },
+        { path: 'person', component: () => import('@/views/front/user/Person.vue'), meta: { requiresAuth: true } },
+        { path: 'password', component: () => import('@/views/front/user/Password.vue'), meta: { requiresAuth: true } },
+        {
+          path: 'favorites',
+          component: () => import('@/views/front/user/Favorites.vue'),
+          meta: { requiresAuth: true }
+        },
         { path: 'orders', component: () => import('@/views/front/user/Orders.vue'), meta: { requiresAuth: true } },
-        { path: 'recharge', component: () => import('@/views/front/user/Recharge.vue') },
-        { path: 'set-payment-password', component: () => import('@/views/front/user/SetPaymentPassword.vue') },
+        { path: 'recharge', component: () => import('@/views/front/user/Recharge.vue'), meta: { requiresAuth: true } },
+        {
+          path: 'set-payment-password',
+          component: () => import('@/views/front/user/SetPaymentPassword.vue'),
+          meta: { requiresAuth: true }
+        },
         {
           path: '/front/forget-payment-password',
-          component: () => import('@/views/front/user/ForgetPaymentPassword.vue')
+          component: () => import('@/views/front/user/ForgetPaymentPassword.vue'),
+          meta: { requiresAuth: true }
         },
         {
           path: '/front/messages',
           component: () => import('@/views/front/user/Messages.vue'),
-          meta: { title: '站内信' }
+          meta: { requiresAuth: true }
         }
       ]
     },
     { path: '/login', component: () => import('@/views/auth/Login.vue') },
     { path: '/register', component: () => import('@/views/auth/Register.vue') }
   ]
+})
+
+router.beforeEach((to, from, next) => {
+  // 检查是否需要登录
+  if (to.meta.requiresAuth) {
+    const user = JSON.parse(localStorage.getItem('system-user') || 'null')
+    if (!user) {
+      // 未登录，跳转到登录页，并携带目标路径
+      next({ path: '/login', query: { redirect: to.fullPath } })
+    } else {
+      next()
+    }
+  } else {
+    next()
+  }
 })
 
 export default router

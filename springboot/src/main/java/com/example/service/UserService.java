@@ -6,6 +6,7 @@ import com.example.entity.Account;
 import com.example.entity.Admin;
 import com.example.entity.User;
 import com.example.exception.CustomException;
+import com.example.mapper.AdminMapper;
 import com.example.mapper.UserMapper;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
@@ -21,6 +22,8 @@ import java.util.List;
 public class UserService {
     @Resource//引用mapper层
     private UserMapper userMapper;
+    @Resource
+    private AdminMapper adminMapper;
 
     /**
      * 登录
@@ -56,6 +59,11 @@ public class UserService {
         User dbUser= userMapper.selectByUsername(username);
         if(dbUser!=null){
             throw new CustomException(("新增失败！账号重复"));
+        }
+        // 检查管理员表是否已存在（防止与管理员账号冲突）
+        Admin dbAdmin = adminMapper.selectByUsername(username);
+        if (dbAdmin != null) {
+            throw new CustomException("新增失败！账号重复");
         }
         //密码为空时设置默认密码
        if(StrUtil.isBlank(user.getPassword())){

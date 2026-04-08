@@ -44,12 +44,12 @@
             class="custom-input" />
         </el-form-item>
 
-        <el-form-item prop="role">
+        <!-- <el-form-item prop="role">
           <el-select style="width: 100%" v-model="data.form.role" class="custom-select">
             <el-option value="普通用户" label="普通用户"></el-option>
             <el-option value="管理员" label="管理员"></el-option>
           </el-select>
-        </el-form-item>
+        </el-form-item> -->
 
         <!-- 协议勾选 -->
         <div class="agreement-checkbox">
@@ -116,7 +116,9 @@ const countdown = ref(0)
 let timer = null
 
 const data = reactive({
-  form: { role: '普通用户' },
+  form: {
+    // role: '普通用户'
+  },
   agree: false,
   rules: {
     username: [{ required: true, message: '请输入账号', trigger: 'blur' }],

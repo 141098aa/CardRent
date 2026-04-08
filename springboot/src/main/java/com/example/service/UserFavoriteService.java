@@ -2,10 +2,8 @@ package com.example.service;
 
 import com.example.entity.content.UserFavorite;
 import com.example.entity.car.Car;
-// import com.example.entity.content.News;  // 注释掉
 import com.example.exception.CustomException;
 import com.example.mapper.CarMapper;
-// import com.example.mapper.NewsMapper;  // 注释掉
 import com.example.mapper.UserFavoriteMapper;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
@@ -27,9 +25,6 @@ public class UserFavoriteService {
 
     @Resource
     private CarMapper carMapper;
-
-    // @Resource
-    // private NewsMapper newsMapper;  // 注释掉
 
     /**
      * 添加收藏
@@ -96,7 +91,7 @@ public class UserFavoriteService {
     }
 
     /**
-     * 获取用户的收藏列表（带详细信息）- 暂时只支持车辆
+     * 获取用户的收藏列表（带详细信息）
      */
     public PageInfo<?> getUserFavorites(Integer userId, String targetType,
                                         Integer pageNum, Integer pageSize) {
@@ -119,9 +114,6 @@ public class UserFavoriteService {
         List<?> detailList;
         if ("car".equals(targetType)) {
             detailList = getCarFavoritesDetail(favorites);
-        } else if ("news".equals(targetType)) {
-            // 资讯功能暂未实现，返回空列表
-            detailList = new ArrayList<>();
         } else {
             throw new CustomException("不支持的收藏类型");
         }
@@ -146,23 +138,6 @@ public class UserFavoriteService {
     }
 
     /**
-     * 获取资讯收藏详细信息 - 暂未实现
-     */
-    /*
-    private List<News> getNewsFavoritesDetail(List<UserFavorite> favorites) {
-        List<Integer> newsIds = favorites.stream()
-                .map(UserFavorite::getTargetId)
-                .collect(Collectors.toList());
-
-        if (newsIds.isEmpty()) {
-            return List.of();
-        }
-
-        return newsMapper.selectByIds(newsIds);
-    }
-    */
-
-    /**
      * 检查收藏目标是否存在
      */
     private void checkTargetExists(Integer targetId, String targetType) {
@@ -171,10 +146,6 @@ public class UserFavoriteService {
             if (car == null) {
                 throw new CustomException("收藏的车辆不存在");
             }
-        } else if ("news".equals(targetType)) {
-            // 资讯功能暂未实现，直接通过
-            // throw new CustomException("资讯收藏功能暂未开放");
-            // 暂时允许收藏资讯，但不检查存在性
         } else {
             throw new CustomException("不支持的收藏类型");
         }

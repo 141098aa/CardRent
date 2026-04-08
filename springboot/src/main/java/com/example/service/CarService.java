@@ -255,8 +255,8 @@ public class CarService {
     }
 
     /**
-     * 热门推荐 - 基于评价数量
-     * 按评价数量降序，取前limit条
+     * 热门推荐 - 按照品牌和分类排序来推荐
+     *取前limit条
      */
     public List<Car> selectHotRecommend(Integer limit) {
         return carMapper.selectHotRecommend(limit);

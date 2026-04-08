@@ -31,7 +31,7 @@ export function getCarDetail(id) {
 }
 
 /**
- * 热门推荐 - 基于评价数量（新用户或未登录时使用）
+ * 热门推荐 - 基于品牌和分类排序（新用户或未登录时使用）
  * @param {number} limit 返回数量
  */
 export function getHotRecommend(limit = 4) {

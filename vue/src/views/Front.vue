@@ -29,19 +29,21 @@
 
       <!-- 用户区域 -->
       <div class="user-wrapper">
-        <!-- 站内信图标 -->
-        <div class="message-icon" @click="goToMessages">
+        <!-- 站内信图标（仅登录时显示） -->
+        <div v-if="data.user.id" class="message-icon" @click="goToMessages">
           <el-badge :value="unreadCount" :hidden="unreadCount === 0" class="badge">
             <el-icon><Message /></el-icon>
           </el-badge>
         </div>
-        <el-dropdown>
+
+        <!-- 已登录状态：显示用户下拉菜单 -->
+        <el-dropdown v-if="data.user.id">
           <div class="user-container">
             <img
               class="user-avatar"
               :src="data.user.avatar || 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png'"
               alt="" />
-            <span class="user-name">{{ data.user.name || '新用户' }}</span>
+            <span class="user-name">{{ data.user.name || '用户' }}</span>
             <el-icon class="arrow-icon"><ArrowDown /></el-icon>
           </div>
           <template #dropdown>
@@ -67,6 +69,12 @@
             </el-dropdown-menu>
           </template>
         </el-dropdown>
+
+        <!-- 未登录状态：显示登录和注册按钮 -->
+        <div v-else class="auth-buttons">
+          <el-button type="primary" size="small" @click="goToLogin">登录</el-button>
+          <el-button size="small" @click="goToRegister">注册</el-button>
+        </div>
       </div>
     </div>
 
@@ -96,10 +104,17 @@ const data = reactive({
 
 const logout = () => {
   localStorage.removeItem('system-user')
-  router.push('/login')
+  data.user = {} // 清空当前用户信息
+  router.push('/front/home') // 跳转到首页
   ElMessage.success('退出成功')
 }
+const goToLogin = () => {
+  router.push('/login')
+}
 
+const goToRegister = () => {
+  router.push('/register')
+}
 // 获取未读消息数量
 const getUnreadCount = async () => {
   if (!data.user?.id) return
@@ -415,5 +430,15 @@ const updateUser = () => {
 .user-wrapper {
   display: flex;
   align-items: center;
+}
+.auth-buttons {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.auth-buttons .el-button {
+  border-radius: 30px;
+  padding: 8px 20px;
 }
 </style>

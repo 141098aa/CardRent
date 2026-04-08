@@ -3,6 +3,7 @@ package com.example.controller;
 import com.example.common.Result;
 import com.example.entity.Account;
 import com.example.entity.User;
+import com.example.exception.CustomException;
 import com.example.service.AdminService;
 import com.example.service.UserService;
 import jakarta.annotation.Resource;
@@ -31,6 +32,31 @@ public class WebController {
     @PostMapping("/login")
     public Result login(@RequestBody Account account) {
         Account ac = null;
+
+        // 先尝试管理员登录
+        try {
+            ac = adminService.login(account);
+        } catch (CustomException e) {
+            // 管理员不存在或密码错误，继续尝试普通用户
+        }
+
+        // 管理员登录失败，尝试普通用户登录
+        if (ac == null) {
+            try {
+                ac = userService.login(account);
+            } catch (CustomException e) {
+                // 用户也不存在或密码错误
+            }
+        }
+
+        if (ac == null) {
+            return Result.error("登录失败，用户不存在");
+        }
+        return Result.success(ac);
+    }
+   /* @PostMapping("/login")
+    public Result login(@RequestBody Account account) {
+        Account ac = null;
         if ("管理员".equals(account.getRole())) {
             ac = adminService.login(account);
         }
@@ -41,7 +67,7 @@ public class WebController {
             return Result.error("登录失败，用户不存在");
         }
         return Result.success(ac);
-    }
+    }*/
 
     /**
      * 注册

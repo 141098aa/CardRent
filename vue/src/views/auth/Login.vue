@@ -34,12 +34,12 @@
             class="custom-input" />
         </el-form-item>
 
-        <el-form-item prop="role">
+        <!-- <el-form-item prop="role">
           <el-select style="width: 100%" v-model="data.form.role" class="custom-select">
             <el-option value="普通用户" label="普通用户"></el-option>
             <el-option value="管理员" label="管理员"></el-option>
           </el-select>
-        </el-form-item>
+        </el-form-item> -->
 
         <div class="forgot-password">
           <a href="#">忘记密码？</a>
@@ -97,7 +97,9 @@ import { User, Lock } from '@element-plus/icons-vue'
 import request from '@/utils/request'
 import { ElMessage } from 'element-plus'
 import router from '@/router'
+import { useRoute } from 'vue-router'
 
+const route = useRoute()
 const loading = ref(false)
 const dialogVisible = ref(false)
 const agreementType = ref('service')
@@ -105,7 +107,9 @@ const countdown = ref(0)
 let timer = null
 
 const data = reactive({
-  form: { role: '管理员' },
+  form: {
+    //  role: '管理员'
+  },
   agree: false,
   rules: {
     username: [{ required: true, message: '请输入账号', trigger: 'blur' }],
@@ -221,12 +225,16 @@ const login = () => {
             loading.value = false
             if (res.code === '200') {
               ElMessage.success('登录成功')
-              if (res.data.role === '管理员') {
+              localStorage.setItem('system-user', JSON.stringify(res.data))
+              // 获取重定向地址（优先使用 URL 参数中的 redirect，否则根据角色跳转）
+              const redirect = route.query.redirect
+              if (redirect) {
+                router.push(redirect)
+              } else if (res.data.role === '管理员') {
                 router.push('/manager/home')
               } else {
                 router.push('/front/home')
               }
-              localStorage.setItem('system-user', JSON.stringify(res.data))
             } else {
               ElMessage.error(res.msg)
             }

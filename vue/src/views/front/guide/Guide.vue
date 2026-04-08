@@ -41,7 +41,7 @@
         </div>
         <div class="guide-card__content">
           <h3>取还车指南</h3>
-          <p>门店/送车上门</p>
+          <p>门店取车 · 原店还车</p>
         </div>
       </div>
     </div>
@@ -87,7 +87,7 @@
           <div class="process-step__number">04</div>
           <div class="process-step__content">
             <h3>取还车辆</h3>
-            <p>按约定时间到店取车或等待送车上门，还车时请确保油量/电量与取车时一致。</p>
+            <p>按约定时间到店取车，还车时请确保油量/电量与取车时一致。</p>
             <div class="process-step__tip">
               <el-icon><InfoFilled /></el-icon>
               <span>取车时请仔细检查车况，拍照留存</span>
@@ -169,7 +169,7 @@
       <h2 class="section-title">取还车指南</h2>
       <div class="pickup-grid">
         <div class="pickup-card">
-          <h3 class="pickup-card__title">门店自取</h3>
+          <h3 class="pickup-card__title">门店取车</h3>
           <p class="pickup-card__desc">前往我们遍布全国的服务网点取车</p>
           <div class="pickup-card__features">
             <span class="feature-tag">200+城市</span>
@@ -192,40 +192,16 @@
           </div>
         </div>
         <div class="pickup-card">
-          <h3 class="pickup-card__title">送车上门</h3>
-          <p class="pickup-card__desc">工作人员将车辆送到您指定地点</p>
-          <div class="pickup-card__features">
-            <span class="feature-tag">免费送车</span>
-            <span class="feature-tag">提前预约</span>
-            <span class="feature-tag">现场验车</span>
-          </div>
-          <div class="pickup-card__steps">
-            <div class="step-item">
-              <span class="step-dot"></span>
-              <span>预约送车时间和地点</span>
-            </div>
-            <div class="step-item">
-              <span class="step-dot"></span>
-              <span>工作人员准时送达</span>
-            </div>
-            <div class="step-item">
-              <span class="step-dot"></span>
-              <span>现场验车，取车出发</span>
-            </div>
-          </div>
-        </div>
-        <div class="pickup-card">
           <h3 class="pickup-card__title">还车方式</h3>
-          <p class="pickup-card__desc">多种还车方式，方便快捷</p>
+          <p class="pickup-card__desc">原店归还，方便快捷</p>
           <div class="pickup-card__features">
             <span class="feature-tag">门店还车</span>
-            <span class="feature-tag">上门取车</span>
-            <span class="feature-tag">异地还车</span>
+            <span class="feature-tag">原店还车</span>
           </div>
           <div class="pickup-card__steps">
             <div class="step-item">
               <span class="step-dot"></span>
-              <span>按约定时间还车</span>
+              <span>按约定时间到店还车</span>
             </div>
             <div class="step-item">
               <span class="step-dot"></span>
@@ -260,7 +236,7 @@ const faqs = ref([
   },
   {
     question: '可以异地还车吗？',
-    answer: '支持异地还车服务，但可能产生一定的异地还车费用，具体费用可在下单时查看。',
+    answer: '目前暂不支持异地还车，请在取车门店归还车辆。如需更换还车地点，请提前联系客服协商。',
     open: false
   },
   {
@@ -290,6 +266,7 @@ const scrollToSection = (id) => {
 </script>
 
 <style scoped>
+/* 样式与原代码保持一致，仅调整了取还车指南部分的网格布局为2列 */
 .guide-container {
   max-width: 1200px;
   margin: 0 auto;
@@ -623,7 +600,7 @@ const scrollToSection = (id) => {
 /* 取还车指南 */
 .pickup-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: 20px;
 }
 
@@ -681,42 +658,5 @@ const scrollToSection = (id) => {
   height: 6px;
   background: #c8a165;
   border-radius: 50%;
-}
-
-/* 响应式 */
-@media (max-width: 900px) {
-  .quick-guide {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
-  .insurance-grid,
-  .pickup-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-@media (max-width: 600px) {
-  .quick-guide,
-  .insurance-grid,
-  .pickup-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .process-step {
-    flex-direction: column;
-    gap: 12px;
-  }
-
-  .process-step__number {
-    font-size: 36px;
-  }
-
-  .faq-question {
-    flex-wrap: wrap;
-  }
-
-  .faq-answer {
-    margin-left: 0;
-  }
 }
 </style>
