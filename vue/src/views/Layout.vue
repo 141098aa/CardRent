@@ -110,35 +110,11 @@
               <el-icon><Document /></el-icon>
               <span>内容管理</span>
             </template>
-            <!-- <el-menu-item index="/manager/guide" class="submenu-item">
-              <el-icon><InfoFilled /></el-icon>
-              <span>服务指南管理</span>
-            </el-menu-item> -->
             <el-menu-item index="/manager/banner" class="submenu-item">
               <el-icon><Picture /></el-icon>
               <span>轮播图管理</span>
             </el-menu-item>
           </el-sub-menu>
-
-          <!-- 系统管理 -->
-          <!-- <el-sub-menu index="system" class="menu-submenu">
-            <template #title>
-              <el-icon><Setting /></el-icon>
-              <span>系统管理</span>
-            </template>
-            <el-menu-item index="/manager/settings" class="submenu-item">
-              <el-icon><Tools /></el-icon>
-              <span>系统设置</span>
-            </el-menu-item>
-            <el-menu-item index="/manager/log" class="submenu-item">
-              <el-icon><Histogram /></el-icon>
-              <span>操作日志</span>
-            </el-menu-item>
-            <el-menu-item index="/manager/backup" class="submenu-item">
-              <el-icon><Folder /></el-icon>
-              <span>数据备份</span>
-            </el-menu-item>
-          </el-sub-menu> -->
 
           <!-- 个人信息 -->
           <el-menu-item index="/manager/person" class="menu-item">

@@ -200,43 +200,31 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ArrowRight } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
-import { userCarApi } from '@/utils/api'
+import { userCarApi, userBannerApi } from '@/utils/api'
 
 const router = useRouter()
 const loading = ref(false)
 const ratingLoading = ref(false)
 
-// 轮播图数据
-const carouselItems = ref([
-  {
-    id: 1,
-    title: '新能源专场',
-    desc: '比亚迪全系限时优惠',
-    keyword: '新能源',
-    image: 'https://images.unsplash.com/photo-1552519507-da3b142c6e3d?auto=format&fit=crop&w=1200&q=80'
-  },
-  {
-    id: 2,
-    title: 'SUV 家族',
-    desc: '空间更大，适合全家出行',
-    keyword: 'SUV',
-    image: 'https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?auto=format&fit=crop&w=1200&q=80'
-  },
-  {
-    id: 3,
-    title: '商务轿车',
-    desc: '稳重舒适，接待首选',
-    keyword: '商务',
-    image: 'https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?auto=format&fit=crop&w=1200&q=80'
-  },
-  {
-    id: 4,
-    title: '经济实惠',
-    desc: '性价比高，新手友好',
-    keyword: '经济',
-    image: 'https://images.unsplash.com/photo-1494976388531-d1058494cdd8?auto=format&fit=crop&w=1200&q=80'
+// 轮播图
+const carouselItems = ref([])
+
+const loadBanners = async () => {
+  try {
+    const res = await userBannerApi.getBannerList()
+    if (res.code === '200') {
+      carouselItems.value = res.data.map((item) => ({
+        id: item.id,
+        title: item.title,
+        desc: item.description,
+        keyword: item.keyword,
+        image: item.image
+      }))
+    }
+  } catch (error) {
+    console.error('加载轮播图失败:', error)
   }
-])
+}
 
 // 热门推荐车辆
 const hotCars = ref([])
@@ -329,6 +317,7 @@ const goRentalDetail = (car) => {
 
 // 初始化加载
 onMounted(() => {
+  loadBanners()
   loadHotRecommend()
   loadRatingRecommend()
 })

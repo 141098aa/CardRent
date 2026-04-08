@@ -61,8 +61,8 @@
         <el-table-column label="操作" align="center" width="220" fixed="right">
           <template #default="scope">
             <el-button type="primary" size="small" :icon="Edit" @click="handleEdit(scope.row)" plain> 编辑 </el-button>
-            <el-button type="danger" size="small" :icon="Delete" @click="handleDelete(scope.row.id)" plain>
-              删除
+            <el-button type="danger" size="small" :icon="CircleClose" @click="handleDelete(scope.row.id)" plain>
+              禁用
             </el-button>
           </template>
         </el-table-column>
@@ -142,7 +142,7 @@
 
 <script setup>
 import { reactive, ref } from 'vue'
-import { Search, Edit, Delete } from '@element-plus/icons-vue'
+import { Search, Edit, CircleClose } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { userApi } from '@/utils/api'
 

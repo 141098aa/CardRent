@@ -33,7 +33,10 @@ const router = createRouter({
 
         // 个人中心
         { path: 'person', component: () => import('@/views/manager/profile/Person.vue') },
-        { path: 'password', component: () => import('@/views/manager/profile/Password.vue') }
+        { path: 'password', component: () => import('@/views/manager/profile/Password.vue') },
+
+        //内容管理
+        { path: 'banner', component: () => import('@/views/manager/content/Banner.vue') }
       ]
     },
     {
