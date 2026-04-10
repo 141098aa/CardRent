@@ -2,7 +2,7 @@ package com.example.controller.front;
 
 import com.example.common.Result;
 import com.example.entity.Admin;
-import com.example.entity.User;
+import com.example.entity.user.User;
 import com.example.service.UserService;
 import com.github.pagehelper.PageInfo;
 import jakarta.annotation.Resource;
@@ -39,6 +39,22 @@ public class UserController {
         userService.deleteById(id);
         return Result.success();
    }
+    /*
+     * 禁用用户
+     * */
+    @PutMapping("/disable/{id}")
+    public Result disable(@PathVariable Integer id) {
+        userService.disableById(id);
+        return Result.success();
+    }
+    /*
+     * 启用用户
+     * */
+    @PutMapping("/enable/{id}")
+    public Result enable(@PathVariable Integer id) {
+        userService.enableById(id);
+        return Result.success();
+    }
    /*
    新增数据
    * */

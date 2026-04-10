@@ -4,7 +4,7 @@ import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.core.util.StrUtil;
 import com.example.entity.Account;
 import com.example.entity.Admin;
-import com.example.entity.User;
+import com.example.entity.user.User;
 import com.example.exception.CustomException;
 import com.example.mapper.AdminMapper;
 import com.example.mapper.UserMapper;
@@ -33,6 +33,10 @@ public class UserService {
         if (ObjectUtil.isNull(dbUser)) {
             throw new CustomException("用户不存在");
         }
+        // 检查用户是否被禁用
+        if (dbUser.getStatus() != null && dbUser.getStatus() == 0) {
+            throw new CustomException("账号已被禁用，请联系管理员");
+        }
         if (!account.getPassword().equals(dbUser.getPassword())) {
             throw new CustomException("账号或密码错误");
         }
@@ -51,6 +55,18 @@ public class UserService {
 
     public void deleteById(Integer id) {
        userMapper.deleteById(id);
+    }
+    /**
+     * 禁用用户
+     */
+    public void disableById(Integer id) {
+        userMapper.disableById(id);
+    }
+    /**
+     * 启用用户（用于解禁）
+     */
+    public void enableById(Integer id) {
+        userMapper.enableById(id);
     }
 
     public void add(User user) {
@@ -78,6 +94,7 @@ public class UserService {
         user.setPaymentPassword(null); // 支付密码默认为空
         user.setRealNameVerified(0); // 实名认证状态默认未认证
         user.setDriverLicenseVerified(0); // 驾驶证认证状态默认未认证
+        user.setStatus(1); // 默认启用
         user.setCreateTime(LocalDateTime.now()); // 设置创建时间
         user.setUpdateTime(LocalDateTime.now()); // 设置更新时间
         userMapper.insert(user);

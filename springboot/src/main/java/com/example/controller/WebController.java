@@ -2,7 +2,7 @@ package com.example.controller;
 
 import com.example.common.Result;
 import com.example.entity.Account;
-import com.example.entity.User;
+import com.example.entity.user.User;
 import com.example.exception.CustomException;
 import com.example.service.AdminService;
 import com.example.service.UserService;

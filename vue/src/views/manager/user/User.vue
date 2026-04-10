@@ -60,9 +60,19 @@
 
         <el-table-column label="操作" align="center" width="220" fixed="right">
           <template #default="scope">
-            <el-button type="primary" size="small" :icon="Edit" @click="handleEdit(scope.row)" plain> 编辑 </el-button>
-            <el-button type="danger" size="small" :icon="CircleClose" @click="handleDelete(scope.row.id)" plain>
+            <el-button type="primary" size="small" :icon="Edit" @click="handleEdit(scope.row)" plain>编辑</el-button>
+            <!-- 根据用户状态显示不同按钮 -->
+            <el-button
+              v-if="scope.row.status !== 0"
+              type="danger"
+              size="small"
+              :icon="CircleClose"
+              @click="handleDisable(scope.row.id)"
+              plain>
               禁用
+            </el-button>
+            <el-button v-else type="success" size="small" :icon="CircleCheck" @click="handleEnable(scope.row.id)" plain>
+              启用
             </el-button>
           </template>
         </el-table-column>
@@ -142,7 +152,7 @@
 
 <script setup>
 import { reactive, ref } from 'vue'
-import { Search, Edit, CircleClose } from '@element-plus/icons-vue'
+import { Search, Edit, CircleClose, CircleCheck } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { userApi } from '@/utils/api'
 
@@ -234,7 +244,51 @@ const handleDelete = (id) => {
     })
     .catch(() => {})
 }
+// 禁用用户
+const handleDisable = (id) => {
+  ElMessageBox.confirm('禁用后该用户将无法登录，您确定要禁用吗？', '禁用确认', {
+    type: 'warning',
+    confirmButtonText: '确定禁用',
+    cancelButtonText: '再想想'
+  })
+    .then(async () => {
+      try {
+        const res = await userApi.disableUser(id) // 调用禁用接口
+        if (res.code === '200') {
+          ElMessage.success('禁用成功')
+          load() // 刷新列表
+        } else {
+          ElMessage.error(res.msg || '禁用失败')
+        }
+      } catch (error) {
+        ElMessage.error('禁用失败')
+      }
+    })
+    .catch(() => {})
+}
 
+// 启用用户
+const handleEnable = (id) => {
+  ElMessageBox.confirm('启用后该用户可以正常登录，您确定要启用吗？', '启用确认', {
+    type: 'info',
+    confirmButtonText: '确定启用',
+    cancelButtonText: '再想想'
+  })
+    .then(async () => {
+      try {
+        const res = await userApi.enableUser(id)
+        if (res.code === '200') {
+          ElMessage.success('启用成功')
+          load()
+        } else {
+          ElMessage.error(res.msg || '启用失败')
+        }
+      } catch (error) {
+        ElMessage.error('启用失败')
+      }
+    })
+    .catch(() => {})
+}
 // 新增用户
 const handleAdd = () => {
   data.form = {}
@@ -329,5 +383,5 @@ load()
 </script>
 
 <style scoped>
-/* 只保留特定于这个页面的样式，通用的样式已经移到全局 */
+/* 通用的样式已经移到全局 */
 </style>

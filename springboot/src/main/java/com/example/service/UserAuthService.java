@@ -1,7 +1,7 @@
 // UserAuthService.java
 package com.example.service;
 
-import com.example.entity.User;
+import com.example.entity.user.User;
 import com.example.entity.UserRealNameAuth;
 import com.example.entity.UserDriverLicenseAuth;
 import com.example.entity.dto.AuthAuditDTO;

@@ -43,10 +43,10 @@
               <el-icon><User /></el-icon>
               <span>普通用户</span>
             </el-menu-item>
-            <el-menu-item index="/manager/admin" class="submenu-item">
+            <!-- <el-menu-item index="/manager/admin" class="submenu-item">
               <el-icon><UserFilled /></el-icon>
               <span>管理员信息</span>
-            </el-menu-item>
+            </el-menu-item> -->
             <el-menu-item index="/manager/user-auth" class="submenu-item">
               <el-icon><CircleCheck /></el-icon>
               <span>认证审核</span>

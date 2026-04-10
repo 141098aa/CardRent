@@ -35,6 +35,23 @@ export function update(data) {
 export function deleteUser(id) {
   return request.delete(`/user/delete/${id}`)
 }
+/**
+ * 禁用用户
+ * @param {number|string} id 用户ID
+ * @returns {Promise}
+ */
+export function disableUser(id) {
+  return request.put(`/user/disable/${id}`)
+}
+
+/**
+ * 启用用户
+ * @param {number|string} id 用户ID
+ * @returns {Promise}
+ */
+export function enableUser(id) {
+  return request.put(`/user/enable/${id}`)
+}
 
 /**
  * 根据ID查询用户

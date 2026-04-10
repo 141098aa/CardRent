@@ -1,7 +1,7 @@
 package com.example.controller.front;
 
 import com.example.common.Result;
-import com.example.entity.User;
+import com.example.entity.user.User;
 import com.example.entity.finance.RechargeRecord;
 import com.example.exception.CustomException;
 import com.example.mapper.UserMapper;

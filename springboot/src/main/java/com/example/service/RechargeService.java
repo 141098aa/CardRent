@@ -1,6 +1,6 @@
 package com.example.service;
 
-import com.example.entity.User;
+import com.example.entity.user.User;
 import com.example.entity.finance.RechargeRecord;
 import com.example.exception.CustomException;
 import com.example.mapper.RechargeMapper;

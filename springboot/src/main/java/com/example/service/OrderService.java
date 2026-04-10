@@ -1,7 +1,7 @@
 package com.example.service;
 
 import cn.hutool.json.ObjectMapper;
-import com.example.entity.User;
+import com.example.entity.user.User;
 import com.example.entity.car.Car;
 import com.example.entity.finance.RefundRequest;
 import com.example.entity.order.Order;
@@ -96,11 +96,11 @@ public class OrderService {
             newStatus = "pending_pickup"; // 审核通过，变为待取车
             // 发送审核通过通知
             messageService.sendMessage(
-                    order.getUserId(),
-                    "订单审核通过",
-                    String.format("您的订单 %s 已审核通过，请按时取车。", order.getOrderNo()),
-                    "order",
-                    "/front/orders"
+                    order.getUserId(),  // 第1个参数：接收通知的用户ID
+                    "订单审核通过",  // 第2个参数：通知标题
+                    String.format("您的订单 %s 已审核通过，请按时取车。", order.getOrderNo()), // 第3个参数：通知内容
+                    "order",  // 第4个参数：通知类型（关联订单）
+                    "/front/orders"  // 第5个参数：点击通知后跳转的页面路径
             );
         } else if ("reject".equals(action)) {
             newStatus = "cancelled"; // 审核拒绝，变为已取消
@@ -333,7 +333,7 @@ public class OrderService {
             if (remainingMinutes > 30) {
                 remainingHours++;
             }
-            // 如果加了1小时后超过4小时，需要重新判断
+            // 如果超过4小时，需要重新判断
             if (remainingHours > 4) {
                 isOvertimeFullDay = true;
                 fullDays++;
@@ -974,9 +974,6 @@ public class OrderService {
                 "order",
                 "/front/orders"
         );
-
-        // 10. 可选：返回更新后的用户信息给前端
-        // 不需要返回值，但前端可以通过另外的接口获取最新用户信息
     }
 
     /**
@@ -1066,7 +1063,7 @@ public class OrderService {
         stats.put("completed", completedCount);
         stats.put("cancelled", cancelledCount);
 
-        // 可选：如果需要保留详细状态，可以继续返回
+        // 详细状态
         stats.put("pending_pay", getCountByStatus(list, "pending_pay"));
         stats.put("pending_audit", getCountByStatus(list, "pending_audit"));
         stats.put("pending_pickup", getCountByStatus(list, "pending_pickup"));

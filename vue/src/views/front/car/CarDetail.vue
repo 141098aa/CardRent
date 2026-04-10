@@ -155,7 +155,7 @@
                   <span class="rating-count">{{ car.reviewCount || 0 }}条评价</span>
                 </div>
               </div>
-              <!-- 评价列表（暂无接口，保留模拟数据） -->
+              <!-- 评价列表（模拟数据） -->
               <div v-if="reviews.length > 0" class="reviews-list">
                 <div v-for="review in reviews" :key="review.id" class="review-item">
                   <div class="review-header">
@@ -176,7 +176,7 @@
           </el-tab-pane>
         </el-tabs>
       </div>
-      <!-- 推荐车型（使用真实接口） -->
+      <!-- 推荐车型 -->
       <div class="recommend-section" v-if="recommendCars.length > 0">
         <h2 class="section-title">推荐车型</h2>
         <div class="recommend-grid">
@@ -224,7 +224,7 @@
                 :picker-options="returnDatePickerOptions" />
             </el-form-item>
 
-            <!-- 添加错误提示 -->
+            <!-- 错误提示 -->
             <div v-if="timeError" class="time-error">
               <el-icon><WarningFilled /></el-icon>
               <span>{{ timeErrorMessage }}</span>
